@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WIKI</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Noto+Sans+JP:wght@300;400;500&family=Noto+Serif+JP:wght@300;400&display=swap');
+
+:root {
+  --black: #0a0a0a;
+  --white: #fafaf8;
+  --grey1: #e8e6e0;
+  --grey2: #b8b5ae;
+  --grey3: #7a7873;
+  --grey4: #3a3835;
+  --sidebar-w: 290px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 300;
+  background: var(--white);
+  color: var(--black);
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app { display: flex; height: 100vh; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  background: #111110;
+  color: var(--white);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sidebar-top {
+  padding: 28px 24px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 400;
+  font-size: 13px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--white);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.logo-sub {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.5);
+}
+.search-wrap { margin-top: 16px; position: relative; }
+.search-wrap input {
+  width: 100%;
+  background: rgba(255,255,255,0.09);
+  border: 1px solid rgba(255,255,255,0.18);
+  padding: 8px 10px 8px 30px;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+  color: rgba(255,255,255,0.9);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.search-wrap input::placeholder { color: rgba(255,255,255,0.35); }
+.search-wrap input:focus { border-color: rgba(255,255,255,0.45); }
+.search-wrap svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); opacity: 0.45; }
+
+/* Category section */
+.sidebar-section {
+  padding: 16px 0 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.section-label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+  padding: 0 24px;
+  margin-bottom: 6px;
+}
+.cat-list { list-style: none; }
+.cat-item { position: relative; }
+.cat-item { cursor: grab;}
+.cat-item:active {cursor: grabbing;}
+.cat-btn {
+  width: 100%;
+  background: none; border: none;
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 24px;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 400;
+  font-size: 13px;
+  color: rgba(255,255,255,0.65);
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.15s, background 0.15s;
+  border-left: 2px solid transparent;
+}
+.cat-btn:hover { color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.04); }
+.cat-btn.active { color: var(--white); font-weight: 500; border-left-color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.07); }
+.cat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.cat-count { margin-left: auto; font-size: 11px; color: rgba(255,255,255,0.35); font-family: 'Cormorant Garamond', serif; }
+.cat-del-btn {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: none; border: none;
+  color: rgba(255,255,255,0.0);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 6px;
+  transition: color 0.15s;
+  display: flex; align-items: center;
+}
+.cat-item:hover .cat-del-btn { color: rgba(255,255,255,0.35); }
+.cat-del-btn:hover { color: #ff7070 !important; }
+
+.add-cat-btn {
+  width: calc(100% - 48px);
+  margin: 8px 24px 0;
+  background: none;
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 6px 0;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 400;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.5);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.add-cat-btn:hover { border-color: rgba(255,255,255,0.55); color: rgba(255,255,255,0.85); }
+
+/* Page list */
+.page-scroll { flex: 1; overflow-y: auto; }
+.page-scroll::-webkit-scrollbar { width: 3px; }
+.page-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+.page-section-label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+  padding: 14px 24px 6px;
+}
+.page-list { list-style: none; }
+.page-btn {
+  width: 100%;
+  background: none; border: none;
+  display: flex; flex-direction: column;
+  padding: 9px 24px;
+  cursor: pointer;
+  text-align: left;
+  border-left: 2px solid transparent;
+  transition: background 0.12s, border-color 0.12s;
+}
+.page-btn:hover { background: rgba(255,255,255,0.05); }
+.page-btn.active { background: rgba(255,255,255,0.09); border-left-color: rgba(255,255,255,0.65); }
+.page-btn-title {
+  font-weight: 400; font-size: 13px;
+  color: rgba(255,255,255,0.78);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;
+}
+.page-btn.active .page-btn-title { color: var(--white); font-weight: 500; }
+.page-btn-sub { font-size: 11px; color: rgba(255,255,255,0.38); margin-top: 2px; }
+
+.sidebar-bottom { padding: 14px 24px; border-top: 1px solid rgba(255,255,255,0.08); }
+.new-btn {
+  width: 100%;
+  background: var(--white); border: none;
+  padding: 10px 0;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 500; font-size: 12px;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--black); cursor: pointer;
+  transition: opacity 0.15s;
+}
+.new-btn:hover { opacity: 0.85; }
+
+/* ── MAIN ── */
+.main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+.main::-webkit-scrollbar { width: 3px; }
+.main::-webkit-scrollbar-thumb { background: var(--grey1); }
+
+.toolbar {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--white);
+  border-bottom: 1px solid var(--grey1);
+  padding: 0 48px; height: 52px;
+  display: flex; align-items: center; gap: 10px;
+}
+.toolbar-title {
+  flex: 1;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 400; font-size: 15px;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--grey3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tbtn {
+  background: none;
+  border: 1px solid var(--grey1);
+  padding: 6px 16px;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 400; font-size: 11px;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--grey3); cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  display: flex; align-items: center; gap: 6px;
+}
+.tbtn:hover { border-color: var(--black); color: var(--black); }
+.tbtn-fill { background: var(--black); border-color: var(--black); color: var(--white); }
+.tbtn-fill:hover { opacity: 0.8; color: var(--white); }
+.tbtn-del { color: #999; }
+.tbtn-del:hover { border-color: #999; color: #555; background: #f5f3f0; }
+
+/* Content */
+.content { padding: 56px 80px 100px; max-width: 860px; animation: fadeUp 0.3s ease; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+.page-title-view {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 300; font-size: 42px;
+  letter-spacing: -0.5px; line-height: 1.15;
+  color: var(--black); margin-bottom: 22px;
+}
+.meta-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 28px; }
+.tag {
+  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+  padding: 3px 10px; border: 1px solid; font-weight: 500;
+}
+.meta-item { font-size: 11px; letter-spacing: 0.8px; color: var(--grey2); text-transform: uppercase; display: flex; align-items: center; gap: 5px; }
+.divider { border: none; border-top: 1px solid var(--grey1); margin-bottom: 36px; }
+.body-text {
+  font-family: 'Noto Serif JP', serif;
+  font-weight: 400; font-size: 15px;
+  line-height: 2; color: var(--grey4);
+  white-space: pre-wrap; word-break: break-word;
+}
+/* Link styles */
+.body-text a.link-full {
+  color: var(--black);
+  text-decoration: underline;
+  text-decoration-color: var(--grey2);
+  text-underline-offset: 3px;
+  font-size: 13px;
+  word-break: break-all;
+  transition: text-decoration-color 0.15s;
+}
+.body-text a.link-full:hover { text-decoration-color: var(--black); }
+.body-text a.link-short {
+  display: inline-flex; align-items: center; gap: 5px;
+  color: var(--black);
+  background: var(--grey1);
+  padding: 2px 10px 2px 8px;
+  font-size: 12px;
+  text-decoration: none;
+  border-bottom: 1px solid var(--grey2);
+  transition: background 0.15s;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 400;
+}
+.body-text a.link-short:hover { background: #dedad2; }
+.body-text a.link-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px;
+  background: var(--black);
+  color: var(--white);
+  text-decoration: none;
+  font-size: 12px;
+  transition: opacity 0.15s;
+  vertical-align: middle;
+}
+.body-text a.link-icon:hover { opacity: 0.7; }
+
+/* Editor */
+.editor-wrap { padding: 48px 80px 100px; max-width: 860px; width: 100%; animation: fadeUp 0.25s ease; }
+.field { margin-bottom: 26px; }
+.field-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--grey3); margin-bottom: 10px; display: block; font-weight: 500; }
+.input-title {
+  width: 100%;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 300; font-size: 36px;
+  color: var(--black); border: none;
+  border-bottom: 1px solid var(--grey1);
+  background: transparent; padding: 4px 0 12px;
+  outline: none; transition: border-color 0.2s;
+}
+.input-title:focus { border-bottom-color: var(--black); }
+.input-title::placeholder { color: var(--grey1); }
+.input-text {
+  width: 100%;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 300; font-size: 12px;
+  color: var(--black);
+  border: 1px solid var(--grey1);
+  background: transparent; padding: 10px 12px;
+  outline: none; transition: border-color 0.2s;
+}
+.input-text:focus { border-color: var(--black); }
+textarea.input-text {
+  min-height: 360px; resize: vertical;
+  line-height: 1.9;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 13.5px;
+}
+.format-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.format-bar button {
+  border: 1px solid var(--grey1);
+  background: transparent;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.editable-body {
+  min-height: 360px;
+  border: 1px solid var(--grey1);
+  padding: 12px;
+  line-height: 1.9;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 13.5px;
+  outline: none;
+  white-space: pre-wrap;
+}
+.editable-body b,
+.editable-body strong {
+  font-weight: 700;
+}
+
+.editable-body mark {
+  background: #fff3a3;
+  padding: 0 2px;
+}
+
+.editable-body span[style*="color"] {
+  font-weight: 500;
+}
+.cat-select-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.cat-opt {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 16px;
+  border: 1px solid var(--grey1);
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 400; font-size: 12px;
+  color: var(--grey3); cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.cat-opt:hover { border-color: var(--grey2); color: var(--black); }
+.cat-opt.sel { border-color: var(--black); color: var(--black); font-weight: 500; }
+.cat-opt input { display: none; }
+
+/* Link display toggle in editor */
+.link-opts-hint {
+  font-size: 11px; color: var(--grey2); margin-top: 8px; letter-spacing: 0.3px;
+}
+.link-opts-hint code {
+  background: var(--grey1); padding: 1px 6px; font-size: 11px; letter-spacing: 0;
+}
+
+/* Empty */
+.empty {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 80px; text-align: center;
+}
+.empty-heading {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 300; font-size: 32px;
+  letter-spacing: 3px; text-transform: uppercase;
+  color: var(--grey1); margin-bottom: 10px;
+}
+.empty-sub { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--grey2); }
+
+/* Search results */
+.search-wrap-main { padding: 48px 80px; max-width: 860px; }
+.search-heading { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 28px; letter-spacing: 1px; color: var(--black); margin-bottom: 28px; }
+.result-item { border-top: 1px solid var(--grey1); padding: 18px 0; cursor: pointer; transition: padding-left 0.15s; }
+.result-item:hover { padding-left: 10px; }
+.result-title { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 20px; color: var(--black); margin-bottom: 5px; }
+.result-excerpt { font-size: 12px; color: var(--grey3); line-height: 1.7; margin-bottom: 5px; }
+.result-meta { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--grey2); }
+.result-last { border-bottom: 1px solid var(--grey1); }
+mark { background: none; color: var(--black); text-decoration: underline; text-decoration-color: var(--grey2); }
+
+/* Modal */
+.overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(10,10,10,0.6);
+  z-index: 200; align-items: center; justify-content: center;
+}
+.overlay.open { display: flex; }
+.modal {
+  background: var(--white);
+  padding: 36px 40px; width: 420px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  animation: fadeUp 0.2s ease;
+}
+.modal-title { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 22px; letter-spacing: 1px; margin-bottom: 10px; }
+.modal-sub { font-size: 12px; color: var(--grey3); margin-bottom: 24px; letter-spacing: 0.3px; line-height: 1.6; }
+.modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+
+.color-swatches { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.swatch { width: 24px; height: 24px; cursor: pointer; border: 2px solid transparent; transition: border-color 0.12s, transform 0.1s; }
+.swatch:hover { transform: scale(1.15); }
+.swatch.sel { border-color: var(--black); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <div class="logo">T+HA WIKI</div>
+      <div class="logo-sub">Internal Knowledge Base</div>
+      <div class="search-wrap">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="globalSearch" placeholder="Search pages..." oninput="handleSearch(this.value)">
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-label">Category</div>
+      <ul class="cat-list" id="catList"></ul>
+      <button class="add-cat-btn" onclick="openNewCatModal()">+ Add Category</button>
+    </div>
+
+    <div class="page-scroll">
+      <div class="page-section-label">Pages</div>
+      <ul class="page-list" id="pageList"></ul>
+    </div>
+
+    <div class="sidebar-bottom">
+      <button class="new-btn" onclick="showEditor(null)">+ New Page</button>
+    </div>
+  </aside>
+
+  <main class="main" id="main">
+    <div class="empty" id="emptyState">
+      <div class="empty-heading">Wiki</div>
+      <div class="empty-sub">Create your first page</div>
+    </div>
+  </main>
+</div>
+
+<!-- Delete page modal -->
+<div class="overlay" id="deleteModal">
+  <div class="modal">
+    <div class="modal-title">Delete Page</div>
+    <div class="modal-sub">このページを削除しますか？この操作は取り消せません。</div>
+    <div class="modal-btns">
+      <button class="tbtn" onclick="closeModal('deleteModal')">Cancel</button>
+      <button class="tbtn tbtn-del" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete category modal -->
+<div class="overlay" id="deleteCatModal">
+  <div class="modal">
+    <div class="modal-title">Delete Category</div>
+    <div class="modal-sub" id="deleteCatMsg">このカテゴリを削除しますか？</div>
+    <div class="modal-btns">
+      <button class="tbtn" onclick="closeModal('deleteCatModal')">Cancel</button>
+      <button class="tbtn tbtn-del" onclick="confirmDeleteCat()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- New category modal -->
+<div class="overlay" id="newCatModal">
+  <div class="modal">
+    <div class="modal-title">New Category</div>
+    <div class="field" style="margin-top:16px">
+      <label class="field-label">Name</label>
+      <input class="input-text" type="text" id="newCatName" placeholder="例：業務マニュアル">
+    </div>
+    <div class="field">
+      <label class="field-label">Color</label>
+      <div class="color-swatches" id="colorSwatches"></div>
+    </div>
+    <div class="modal-btns" style="margin-top:20px">
+      <button class="tbtn" onclick="closeModal('newCatModal')">Cancel</button>
+      <button class="tbtn tbtn-fill" onclick="addCategory()">Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ─── Storage ─── */
+const PK='wiki_pages_v2', CK='wiki_cats_v2';
+function loadPages(){ try{ return JSON.parse(localStorage.getItem(PK)||'[]'); }catch{ return []; } }
+function savePages(p){ localStorage.setItem(PK,JSON.stringify(p)); }
+function loadCats(){
+  const d=[
+    {id:'general', name:'General',      color:'#3b9eff'},
+    {id:'manual',  name:'Manual',       color:'#2ecc71'},
+    {id:'meeting', name:'Meeting Note', color:'#f39c12'},
+  ];
+  try{ return JSON.parse(localStorage.getItem(CK)||JSON.stringify(d)); }catch{ return d; }
+}
+function saveCats(c){ localStorage.setItem(CK,JSON.stringify(c)); }
+
+/* ─── State ─── */
+let pages=loadPages(), cats=loadCats();
+let currentId=null, filterCat='all', deleteTarget=null, deleteCatTarget=null, selColor='#3b9eff';
+
+// Bright, vivid swatch palette
+const SWATCHES=[
+  '#3b9eff','#2ecc71','#f39c12','#e74c3c',
+  '#9b59b6','#1abc9c','#e91e8c','#ff6b35',
+  '#00bcd4','#8bc34a','#ff9800','#607d8b'
+];
+let draggedCatId = null;
+
+function dragStart(e){
+  draggedCatId = e.currentTarget.dataset.id;
+}
+
+function dragOver(e){
+  e.preventDefault();
+}
+
+function dropCat(e){
+  e.preventDefault();
+
+  const targetId = e.currentTarget.dataset.id;
+  if(draggedCatId === targetId) return;
+
+  const fromIndex = cats.findIndex(c => c.id === draggedCatId);
+  const toIndex = cats.findIndex(c => c.id === targetId);
+
+  const moved = cats.splice(fromIndex, 1)[0];
+  cats.splice(toIndex, 0, moved);
+
+  saveCats(cats);
+  renderSidebar();
+}
+/* ─── Sidebar render ─── */
+function renderSidebar(){
+  const catList=document.getElementById('catList');
+  let html=`<li class="cat-item">
+  <button class="cat-btn${filterCat==='all'?' active':''}" onclick="filterBy('all')">
+    <span class="cat-dot" style="background:rgba(255,255,255,0.5)"></span>All
+    <span class="cat-count">${pages.length}</span>
+  </button>
+</li>`;
+  cats.forEach(c=>{
+  const n=pages.filter(p=>p.category===c.id).length;
+
+html+=`<li class="cat-item"
+  draggable="true"
+  data-id="${c.id}"
+  ondragstart="dragStart(event)"
+  ondragover="dragOver(event)"
+  ondrop="dropCat(event)"
+  ondblclick="openEditCatModal('${c.id}',event)">
+
+  <button class="cat-btn${filterCat===c.id?' active':''}" onclick="filterBy('${c.id}')">
+    <span class="cat-dot" style="background:${c.color}"></span>${c.name}
+    <span class="cat-count">${n}</span>
+  </button>
+
+  <button class="cat-del-btn" title="カテゴリを削除" onclick="openDeleteCatModal('${c.id}',event)">
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="18" y1="6" x2="6" y2="18"/>
+      <line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  </button>
+
+</li>`;
+  });
+  catList.innerHTML=html;
+
+  const filtered=(filterCat==='all'?pages:pages.filter(p=>p.category===filterCat))
+    .sort((a,b)=>b.updatedAt-a.updatedAt);
+  const pl=document.getElementById('pageList');
+  if(!filtered.length){ pl.innerHTML=`<li style="padding:10px 24px;font-size:11px;color:rgba(255,255,255,0.3)">No pages yet</li>`; return; }
+  pl.innerHTML=filtered.map(p=>{
+    const cat=cats.find(c=>c.id===p.category);
+    return `<li><button class="page-btn${p.id===currentId?' active':''}" onclick="viewPage('${p.id}')">
+      <span class="page-btn-title">${p.title||'Untitled'}</span>
+      <span class="page-btn-sub">${cat?cat.name+' · ':''}${fmtDate(p.updatedAt)}</span>
+    </button></li>`;
+  }).join('');
+}
+
+/* ─── View page ─── */
+function viewPage(id){
+  const p=pages.find(x=>x.id===id); if(!p) return;
+  currentId=id; renderSidebar();
+  const cat=cats.find(c=>c.id===p.category);
+  document.getElementById('main').innerHTML=`
+    <div class="toolbar">
+      <span class="toolbar-title">${p.title||'Untitled'}</span>
+      <button class="tbtn" onclick="showEditor('${id}')">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Edit
+      </button>
+      <button class="tbtn tbtn-del" onclick="openDeleteModal('${id}')">Delete</button>
+    </div>
+    <div class="content">
+      <h1 class="page-title-view">${p.title||'Untitled'}</h1>
+      <div class="meta-row">
+        ${cat?`<span class="tag" style="border-color:${cat.color};color:${cat.color}">${cat.name}</span>`:''}
+        <span class="meta-item">Updated ${fmtFull(p.updatedAt)}</span>
+        <span class="meta-item">Created ${fmtFull(p.createdAt)}</span>
+      </div>
+      <hr class="divider">
+      <div class="body-text">${renderBody(p.body||'')}</div>
+    </div>`;
+}
+
+/* ─── Link rendering ─── */
+// Syntax:
+//   bare URL            → full URL link
+//   [label](url)        → short chip link
+//   [icon](url)         → link icon button
+function renderBody(text){
+  let out = text;
+
+  // [icon](url) → icon button
+  out = out.replace(/\[icon\]\((https?:\/\/[^\s)]+)\)/g,(_,url)=>{
+    const domain=getDomain(url);
+    return `<a class="link-icon" href="${url}" target="_blank" rel="noopener" title="${url}">
+      <img src="https://www.google.com/s2/favicons?domain=${domain}&sz=16" width="14" height="14" onerror="this.style.display='none';this.parentNode.innerHTML='🔗';" style="image-rendering:auto">
+    </a>`;
+  });
+
+  // [label](url) → short chip
+  out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,(_,label,url)=>{
+    return `<a class="link-short" href="${url}" target="_blank" rel="noopener">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+      </svg>
+      ${label}
+    </a>`;
+  });
+
+  // bare URLs → full link
+  out = out.replace(/(^|[\s>])(https?:\/\/[^\s<"]+)/g, '$1<a class="link-full" href="$2" target="_blank" rel="noopener">$2</a>');
+
+  return out;
+}
+
+function getDomain(url){
+  try{ return new URL(url).hostname; }catch{ return url; }
+}
+
+/* ─── Editor ─── */
+function showEditor(id){
+  const isNew=id===null;
+  const p=isNew?{title:'',body:'',category:cats[0]?.id||''}:pages.find(x=>x.id===id);
+  if(!p) return;
+  currentId=id; renderSidebar();
+  const catOpts=cats.map(c=>`
+    <label class="cat-opt${p.category===c.id?' sel':''}" onclick="selCat(this,'${c.id}')">
+      <input type="radio" name="pc" value="${c.id}" ${p.category===c.id?'checked':''}>
+      <span class="cat-dot" style="background:${c.color}"></span>${c.name}
+    </label>`).join('');
+  document.getElementById('main').innerHTML=`
+    <div class="toolbar">
+      <span class="toolbar-title">${isNew?'New Page':'Editing'}</span>
+      <button class="tbtn" onclick="${isNew?'cancelNew()':`viewPage('${id}')`}">Cancel</button>
+      <button class="tbtn tbtn-fill" onclick="savePage(${isNew?'null':`'${id}'`})">Save</button>
+    </div>
+    <div class="editor-wrap">
+      <div class="field">
+        <input class="input-title" id="eTitle" type="text" placeholder="Title" value="${escA(p.title||'')}">
+      </div>
+      <div class="field">
+        <label class="field-label">Category</label>
+        <div class="cat-select-row">${catOpts}</div>
+      </div>
+      <div class="field">
+        <label class="field-label">Content</label>
+        <div class="format-bar">
+  <button type="button" onmousedown="event.preventDefault(); formatText('bold')"><b>B</b></button>
+  <button type="button" onclick="formatText('hiliteColor','#fff3a3')">Marker</button>
+  <button type="button" onclick="formatText('foreColor','#d94848')">Red</button>
+  <button type="button" onclick="formatText('removeFormat')">Clear</button>
+</div>
+
+<div class="editable-body" id="eBody" contenteditable="true" placeholder="テキストを入力...">${p.body||''}</div>
+        <div class="link-opts-hint">
+          リンクの表示形式：<br>
+          通常URL → フルリンク表示 ｜
+          <code>[ラベル](URL)</code> → ショートリンク ｜
+          <code>[icon](URL)</code> → アイコンボタン
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('eTitle').focus();
+}
+
+function selCat(el,id){
+  document.querySelectorAll('.cat-opt').forEach(o=>o.classList.remove('sel'));
+  el.classList.add('sel'); el.querySelector('input').checked=true;
+}
+function formatText(command, value=null){
+  document.execCommand(command, false, value);
+  document.getElementById('eBody').focus();
+}
+function savePage(id){
+  const title=document.getElementById('eTitle').value.trim();
+  const body=document.getElementById('eBody').innerHTML;
+  const catEl=document.querySelector('input[name="pc"]:checked');
+  const category=catEl?catEl.value:(cats[0]?.id||'');
+  if(!title){ alert('タイトルを入力してください'); return; }
+  if(id===null){
+    const np={id:'p'+Date.now(),title,body,category,createdAt:Date.now(),updatedAt:Date.now()};
+    pages.unshift(np); currentId=np.id;
+  } else {
+    const i=pages.findIndex(p=>p.id===id);
+    if(i>=0){ pages[i]={...pages[i],title,body,category,updatedAt:Date.now()}; currentId=id; }
+  }
+  savePages(pages); renderSidebar(); viewPage(currentId);
+}
+
+function cancelNew(){
+  currentId=null; renderSidebar();
+  if(pages.length>0) viewPage(pages[0].id); else showEmpty();
+}
+function showEmpty(){
+  document.getElementById('main').innerHTML=`<div class="empty"><div class="empty-heading">Wiki</div><div class="empty-sub">Create your first page</div></div>`;
+}
+
+/* ─── Delete page ─── */
+function openDeleteModal(id){ deleteTarget=id; document.getElementById('deleteModal').classList.add('open'); }
+function confirmDelete(){
+  pages=pages.filter(p=>p.id!==deleteTarget);
+  savePages(pages); currentId=null;
+  closeModal('deleteModal'); renderSidebar();
+  if(pages.length>0) viewPage(pages[0].id); else showEmpty();
+}
+
+/* ─── Delete category ─── */
+function openDeleteCatModal(id,e){
+  e.stopPropagation();
+  deleteCatTarget=id;
+  const cat=cats.find(c=>c.id===id);
+  const n=pages.filter(p=>p.category===id).length;
+  document.getElementById('deleteCatMsg').textContent=
+    `「${cat?.name}」を削除しますか？${n>0?`このカテゴリのページ${n}件は「カテゴリなし」になります。`:''}この操作は取り消せません。`;
+  document.getElementById('deleteCatModal').classList.add('open');
+}
+function confirmDeleteCat(){
+  cats=cats.filter(c=>c.id!==deleteCatTarget);
+  saveCats(cats);
+  // reassign pages in this cat to first available cat or empty
+  const fallback=cats[0]?.id||'';
+  pages=pages.map(p=>p.category===deleteCatTarget?{...p,category:fallback}:p);
+  savePages(pages);
+  if(filterCat===deleteCatTarget) filterCat='all';
+  closeModal('deleteCatModal'); renderSidebar();
+  if(currentId) viewPage(currentId); else if(pages.length>0) viewPage(pages[0].id); else showEmpty();
+}
+
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+/* ─── Filter ─── */
+function filterBy(cat){
+  filterCat=cat; renderSidebar();
+  const list=(cat==='all'?pages:pages.filter(p=>p.category===cat)).sort((a,b)=>b.updatedAt-a.updatedAt);
+  if(list.length) viewPage(list[0].id); else showEmpty();
+}
+
+/* ─── Search ─── */
+function handleSearch(q){
+  q=q.trim();
+  if(!q){ renderSidebar(); if(currentId) viewPage(currentId); else showEmpty(); return; }
+  const ql=q.toLowerCase();
+  const res=pages.filter(p=>p.title.toLowerCase().includes(ql)||(p.body||'').toLowerCase().includes(ql));
+  document.getElementById('main').innerHTML=`
+    <div class="toolbar"><span class="toolbar-title">Search: ${q}</span></div>
+    <div class="search-wrap-main">
+      <div class="search-heading">${res.length} result${res.length!==1?'s':''}</div>
+      ${res.length===0?'<p style="font-size:12px;color:var(--grey2);letter-spacing:1px">No pages found.</p>':
+        res.map((p,i)=>{
+          const cat=cats.find(c=>c.id===p.category);
+          const ex=excerpt(p.body||'',ql);
+          return `<div class="result-item${i===res.length-1?' result-last':''}" onclick="viewPage('${p.id}');document.getElementById('globalSearch').value=''">
+            <div class="result-title">${hl(p.title,q)}</div>
+            ${ex?`<div class="result-excerpt">${hl(ex,q)}</div>`:''}
+            <div class="result-meta">${cat?cat.name+' · ':''}${fmtFull(p.updatedAt)}</div>
+          </div>`;
+        }).join('')}
+    </div>`;
+}
+function excerpt(text,q){
+  const i=text.toLowerCase().indexOf(q); if(i<0) return '';
+  const s=Math.max(0,i-50),e=Math.min(text.length,i+90);
+  return (s>0?'…':'')+text.slice(s,e)+(e<text.length?'…':'');
+}
+function hl(t,q){
+  const re=new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi');
+  return escH(t).replace(re,m=>`<mark>${m}</mark>`);
+}
+
+/* ─── New category ─── */
+function openNewCatModal(){
+  document.getElementById('newCatName').value='';
+  selColor=SWATCHES[0];
+  document.getElementById('colorSwatches').innerHTML=SWATCHES.map(c=>
+    `<div class="swatch${c===selColor?' sel':''}" style="background:${c}" onclick="pickSwatch(this,'${c}')"></div>`).join('');
+  document.getElementById('newCatModal').classList.add('open');
+}
+function pickSwatch(el,c){
+  selColor=c;
+  document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('sel'));
+  el.classList.add('sel');
+}
+function addCategory(){
+  const name=document.getElementById('newCatName').value.trim();
+  if(!name){ alert('カテゴリ名を入力してください'); return; }
+  cats.push({id:'c'+Date.now(),name,color:selColor});
+  saveCats(cats); closeModal('newCatModal'); renderSidebar();
+}
+function openEditCatModal(id,e){
+  e.stopPropagation();
+
+  const cat = cats.find(c => c.id === id);
+  if(!cat) return;
+
+  // 名前をセット
+  document.getElementById('newCatName').value = cat.name;
+
+  // 色をセット
+  selColor = cat.color;
+
+  // スウォッチ描画
+  document.getElementById('colorSwatches').innerHTML =
+    SWATCHES.map(c=>
+      `<div class="swatch${c===selColor?' sel':''}"
+        style="background:${c}"
+        onclick="pickSwatch(this,'${c}')"></div>`
+    ).join('');
+
+  // モーダル開く
+  document.getElementById('newCatModal').classList.add('open');
+
+  // Addボタンを一時的にSave化
+  const saveBtn = document.querySelector('#newCatModal .tbtn-fill');
+  saveBtn.textContent = 'Save';
+
+  saveBtn.onclick = function(){
+
+    const newName =
+      document.getElementById('newCatName').value.trim();
+
+    if(!newName){
+      alert('カテゴリ名を入力してください');
+      return;
+    }
+
+    cat.name = newName;
+    cat.color = selColor;
+
+    saveCats(cats);
+
+    closeModal('newCatModal');
+    renderSidebar();
+
+    if(currentId){
+      viewPage(currentId);
+    }
+
+    // ボタン戻す
+    saveBtn.textContent = 'Add';
+    saveBtn.onclick = addCategory;
+  };
+}
+
+/* ─── Utils ─── */
+function escH(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function escA(s){ return escH(s); }
+function fmtDate(ts){
+  const d=new Date(ts),now=new Date(),df=now-d;
+  if(df<60000) return 'just now';
+  if(df<3600000) return Math.floor(df/60000)+'m ago';
+  if(df<86400000) return Math.floor(df/3600000)+'h ago';
+  return `${d.getMonth()+1}/${d.getDate()}`;
+}
+function fmtFull(ts){
+  const d=new Date(ts);
+  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+}
+
+/* ─── Init ─── */
+renderSidebar();
+if(pages.length>0) viewPage(pages[0].id);
+else {
+  const sample=[{
+    id:'s1',title:'はじめに',category:'general',
+    body:'このWikiは社内の情報共有ツールです。\n\n【リンクの使い方】\n\n通常のURL（そのまま貼るとフルリンク）:\nhttps://toraohsieh.com/\n\nショートリンク（[ラベル](URL) の形式）:\n[会社HP](https://toraohsieh.com/)\n\nアイコンリンク（[icon](URL) の形式）:\n[icon](https://toraohsieh.com/)\n\n【データ保存】\nすべてのデータはこのブラウザのlocalStorageに保存されます。',
+    createdAt:Date.now()-86400000, updatedAt:Date.now()-3600000
+  }];
+  pages=sample; savePages(pages); renderSidebar(); viewPage('s1');
+}
+
+document.querySelectorAll('.overlay').forEach(el=>{
+  el.addEventListener('click',e=>{ if(e.target===el) el.classList.remove('open'); });
+});
+</script>
+</body>
+</html>
