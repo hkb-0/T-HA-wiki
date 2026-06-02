@@ -531,7 +531,7 @@ mark { background: none; color: var(--black); text-decoration: underline; text-d
   // 合っていたら「認証済み」の合言葉をブラウザに記憶させる
   sessionStorage.setItem("wiki_authenticated", "true");
 })();
-/* ─── Storage ─── */
+/* ───  Storage  ─── */
 const PK='wiki_pages_v2', CK='wiki_cats_v2';
 function loadPages(){ try{ return JSON.parse(localStorage.getItem(PK)||'[]'); }catch{ return []; } }
 function savePages(p){ localStorage.setItem(PK,JSON.stringify(p)); }
