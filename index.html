@@ -531,44 +531,22 @@ mark { background: none; color: var(--black); text-decoration: underline; text-d
   // 合っていたら「認証済み」の合言葉をブラウザに記憶させる
   sessionStorage.setItem("wiki_authenticated", "true");
 })();
-/* ─── Storage（データ同期版） ─── */
-const KV_URL = "https://t-ha-wiki.vercel.app/api/kv";
-
-async function loadPages() {
-  try {
-    const res = await fetch(KV_URL);
-    const data = await res.json();
-    return data || [];
-  } catch(e) {
-    console.error("読み込み失敗、ローカルで動きます:", e);
-    try { return JSON.parse(localStorage.getItem('wiki_pages_v2') || '[]'); } catch { return []; }
-  }
-}
-
-async function savePages(p) {
-  localStorage.setItem('wiki_pages_v2', JSON.stringify(p));
-  try {
-    await fetch(KV_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(p)
-    });
-  } catch(e) {
-    console.error("サーバーへの保存失敗:", e);
-  }
-}
+/* ───  Storage  ─── */
+const PK='wiki_pages_v2', CK='wiki_cats_v2';
+function loadPages(){ try{ return JSON.parse(localStorage.getItem(PK)||'[]'); }catch{ return []; } }
+function savePages(p){ localStorage.setItem(PK,JSON.stringify(p)); }
 function loadCats(){
   const d=[
     {id:'general', name:'General',      color:'#3b9eff'},
     {id:'manual',  name:'Manual',       color:'#2ecc71'},
     {id:'meeting', name:'Meeting Note', color:'#f39c12'},
   ];
-  try{ return JSON.parse(localStorage.getItem('wiki_cats_v2')||JSON.stringify(d)); }catch{ return d; }
+  try{ return JSON.parse(localStorage.getItem(CK)||JSON.stringify(d)); }catch{ return d; }
 }
-function saveCats(c){ localStorage.setItem('wiki_cats_v2',JSON.stringify(c)); }
+function saveCats(c){ localStorage.setItem(CK,JSON.stringify(c)); }
 
 /* ─── State ─── */
-let pages=[], cats=loadCats(); // 👈 pages を [] に変更しました
+let pages=loadPages(), cats=loadCats();
 let currentId=null, filterCat='all', deleteTarget=null, deleteCatTarget=null, selColor='#3b9eff';
 
 // Bright, vivid swatch palette
@@ -954,27 +932,16 @@ function fmtFull(ts){
 }
 
 /* ─── Init ─── */
-// 非同期でKVからデータを読み込んで初期化する関数
-async function initWiki() {
-  pages = await loadPages();
-  renderSidebar();
-  if(pages.length > 0) {
-    viewPage(pages[0].id);
-  } else {
-    const sample = [{
-      id: 's1', title: 'はじめに', category: 'general',
-      body: 'このWikiは社内の情報共有ツールです。\n\nすべてのデータはオンラインデータベース（Vercel Redis）に自動同期されます！',
-      createdAt: Date.now(), updatedAt: Date.now()
-    }];
-    pages = sample;
-    await savePages(pages);
-    renderSidebar();
-    viewPage('s1');
-  }
+renderSidebar();
+if(pages.length>0) viewPage(pages[0].id);
+else {
+  const sample=[{
+    id:'s1',title:'はじめに',category:'general',
+    body:'このWikiは社内の情報共有ツールです。\n\n【リンクの使い方】\n\n通常のURL（そのまま貼るとフルリンク）:\nhttps://toraohsieh.com/\n\nショートリンク（[ラベル](URL) の形式）:\n[会社HP](https://toraohsieh.com/)\n\nアイコンリンク（[icon](URL) の形式）:\n[icon](https://toraohsieh.com/)\n\n【データ保存】\nすべてのデータはこのブラウザのlocalStorageに保存されます。',
+    createdAt:Date.now()-86400000, updatedAt:Date.now()-3600000
+  }];
+  pages=sample; savePages(pages); renderSidebar(); viewPage('s1');
 }
-
-// 初期化関数を実行
-initWiki();
 
 document.querySelectorAll('.overlay').forEach(el=>{
   el.addEventListener('click',e=>{ if(e.target===el) el.classList.remove('open'); });
