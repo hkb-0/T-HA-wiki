@@ -503,6 +503,34 @@ mark { background: none; color: var(--black); text-decoration: underline; text-d
 </div>
 
 <script>
+  /* ─── 簡易パスワード認証 ─── */
+(function() {
+  const CORRECT_PASSWORD = "T+HA2026"; // 好きなパスワードに変えてください
+  
+  // すでにパスワード認証済みかチェック
+  if (sessionStorage.getItem("wiki_authenticated") === "true") {
+    return; // 認証済みならそのままWikiを表示
+  }
+
+  // パスワードが合うまで無限ループで聞き続ける
+  let password = "";
+  while (password !== CORRECT_PASSWORD) {
+    password = prompt("社内専用Wiki：パスワードを入力してください");
+    
+    // キャンセルされた場合
+    if (password === null) {
+      document.body.innerHTML = "<h1 style='font-family:sans-serif; text-align:center; margin-top:100px; color:#555;'>アクセス権限がありません。</h1>";
+      throw new Error("Authentication canceled");
+    }
+    
+    if (password !== CORRECT_PASSWORD) {
+      alert("パスワードが違います。");
+    }
+  }
+
+  // 合っていたら「認証済み」の合言葉をブラウザに記憶させる
+  sessionStorage.setItem("wiki_authenticated", "true");
+})();
 /* ─── Storage ─── */
 const PK='wiki_pages_v2', CK='wiki_cats_v2';
 function loadPages(){ try{ return JSON.parse(localStorage.getItem(PK)||'[]'); }catch{ return []; } }
