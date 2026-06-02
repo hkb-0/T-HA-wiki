@@ -563,12 +563,12 @@ function loadCats(){
     {id:'manual',  name:'Manual',       color:'#2ecc71'},
     {id:'meeting', name:'Meeting Note', color:'#f39c12'},
   ];
-  try{ return JSON.parse(localStorage.getItem(CK)||JSON.stringify(d)); }catch{ return d; }
+  try{ return JSON.parse(localStorage.getItem('wiki_cats_v2')||JSON.stringify(d)); }catch{ return d; }
 }
-function saveCats(c){ localStorage.setItem(CK,JSON.stringify(c)); }
+function saveCats(c){ localStorage.setItem('wiki_cats_v2',JSON.stringify(c)); }
 
 /* ─── State ─── */
-let pages=loadPages(), cats=loadCats();
+let pages=[], cats=loadCats(); // 👈 pages を [] に変更しました
 let currentId=null, filterCat='all', deleteTarget=null, deleteCatTarget=null, selColor='#3b9eff';
 
 // Bright, vivid swatch palette
