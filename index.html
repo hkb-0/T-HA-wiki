@@ -852,7 +852,8 @@ function viewPage(id) {
 function renderBody(text) {
   let out = text;
   out = out.replace(/\[img\]\((https?:\/\/[^\s)]+)\)/g, (_, url) => {
-    return `<img class="wiki-img" src="${url}" alt="本文画像" loading="lazy">`;
+    const imgUrl = normalizeImageUrl(url);
+    return `<img class="wiki-img" src="${imgUrl}" alt="本文画像" loading="lazy">`;
   });
   out = out.replace(/\[icon\]\((https?:\/\/[^\s)]+)\)/g, (_, url) => {
     const domain = getDomain(url);
@@ -865,6 +866,25 @@ function renderBody(text) {
   return out;
 }
 function getDomain(url) { try { return new URL(url).hostname; } catch { return url; } }
+
+function normalizeImageUrl(url) {
+  try {
+    const u = new URL(url);
+    let id = '';
+
+    if (u.hostname === 'drive.google.com') {
+      id = u.searchParams.get('id') || '';
+      const match = u.pathname.match(/\/file\/d\/([^/]+)/);
+      if (!id && match) id = match[1];
+    }
+
+    if (id) {
+      return 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w1600';
+    }
+  } catch (error) {}
+
+  return url;
+}
 
 /* ─── Editor ─── */
 function showEditor(id) {
@@ -982,7 +1002,7 @@ async function insertImageFile(file, altText) {
     const dataUrl = await imageFileToDataUrl(file);
     const uploaded = await uploadImageToDrive(dataUrl, file.name || altText || 'image.jpg');
     if (uploaded && uploaded.url) {
-      insertTextAtCursor(`[img](${uploaded.url})`);
+      insertTextAtCursor(`[img](${normalizeImageUrl(uploaded.url)})`);
     } else {
       insertHtmlAtCursor(`<img src="${dataUrl}" alt="${escA(altText || '画像')}">`);
     }
