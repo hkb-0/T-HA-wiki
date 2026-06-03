@@ -537,7 +537,7 @@ mark { background: none; color: var(--black); text-decoration: underline; text-d
    （「デプロイ」→「ウェブアプリとして導入」で発行される
      https://script.google.com/macros/s/xxxxxxx/exec 形式のURL）
 ═══════════════════════════════════════════════════ */
-const GAS_URL = 'https://script.google.com/macros/s/AKfycby-oRdFrINAL1ihfjn5IxNRiP21024mOKs88iGWlPtkDzF_BZ1bxWdYXbdlzMWOH8-e/exec';
+const GAS_URL = 'https://script.google.com/macros/s/YOUR_DEPLOY_ID_HERE/exec';
 /* ═══════════════════════════════════════════════════ */
 
 /* ─── パスワード認証 ─── */
@@ -558,8 +558,8 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycby-oRdFrINAL1ihfjn5IxNR
 
 /* ═══════════════════════════════════════════════════
    GAS Storage Layer
-   localStorage をフォールバックとして保持しつつ、
-   すべての読み書きを GAS スプレッドシートと同期する
+   起動時のみGASから取得、以降はlocalStorageをメインに使用。
+   書き込みは debounce で5秒後にまとめてバックグラウンド同期。
 ═══════════════════════════════════════════════════ */
 const LS_PAGES = 'wiki_pages_v2';
 const LS_CATS  = 'wiki_cats_v2';
@@ -571,8 +571,8 @@ function setSyncState(state) {
   dot.title = state === 'syncing' ? '同期中...' : state === 'error' ? '同期エラー（ローカル保存済み）' : '同期済み';
 }
 
+// GASへのリクエストはすべてGETで行う
 async function gasCall(action, payload = {}) {
-  setSyncState('syncing');
   try {
     const params = new URLSearchParams({
       action,
@@ -581,48 +581,48 @@ async function gasCall(action, payload = {}) {
     });
     const res = await fetch(GAS_URL + '?' + params.toString());
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    const json = await res.json();
-    setSyncState('ok');
-    return json;
+    return await res.json();
   } catch (e) {
-    console.warn('GAS request failed, localStorage only:', e);
-    setSyncState('error');
+    console.warn('GAS request failed:', e);
     return null;
   }
 }
 
-async function gasRequest(action, payload = {}) {
-  const r = await gasCall(action, payload);
-  return r && r.ok !== false;
-}
-async function gasGet(action) {
-  return await gasCall(action);
+// debounce: 連続した書き込みをまとめて遅延実行
+let syncTimer = null;
+function schedulSync() {
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(async () => {
+    setSyncState('syncing');
+    const r1 = await gasCall('saveAllPages', { pages });
+    const r2 = await gasCall('saveCats', { cats });
+    setSyncState(r1 && r2 ? 'ok' : 'error');
+  }, 5000); // 5秒後にまとめて同期
 }
 
-/* ─── Pages ─── */
+// Pages
 async function loadPagesRemote() {
-  const data = await gasGet('getPages');
+  const data = await gasCall('getPages');
   if (data && Array.isArray(data.pages)) {
     localStorage.setItem(LS_PAGES, JSON.stringify(data.pages));
     return data.pages;
   }
-  // フォールバック: localStorage
   try { return JSON.parse(localStorage.getItem(LS_PAGES) || '[]'); } catch { return []; }
 }
 
 async function savePageRemote(pageObj) {
   localStorage.setItem(LS_PAGES, JSON.stringify(pages));
-  await gasRequest('savePage', { page: pageObj });
+  schedulSync();
 }
 
 async function deletePageRemote(id) {
   localStorage.setItem(LS_PAGES, JSON.stringify(pages));
-  await gasRequest('deletePage', { id });
+  schedulSync();
 }
 
-/* ─── Cats ─── */
+// Cats
 async function loadCatsRemote() {
-  const data = await gasGet('getCats');
+  const data = await gasCall('getCats');
   if (data && Array.isArray(data.cats)) {
     localStorage.setItem(LS_CATS, JSON.stringify(data.cats));
     return data.cats;
@@ -637,20 +637,19 @@ async function loadCatsRemote() {
 
 async function saveCatsRemote() {
   localStorage.setItem(LS_CATS, JSON.stringify(cats));
-  await gasRequest('saveCats', { cats });
+  schedulSync();
 }
 
-/* ─── 旧 sync ヘルパー（後方互換ラッパー） ─── */
+// 後方互換ラッパー（savePages/saveCats を呼んでいる箇所はそのまま動く）
 function savePages(p) {
   pages = p;
   localStorage.setItem(LS_PAGES, JSON.stringify(p));
-  // 非同期でGASにも書き込む（await不要）
-  gasRequest('saveAllPages', { pages: p });
+  schedulSync();
 }
 function saveCats(c) {
   cats = c;
   localStorage.setItem(LS_CATS, JSON.stringify(c));
-  gasRequest('saveCats', { cats: c });
+  schedulSync();
 }
 
 /* ─── State ─── */
@@ -989,26 +988,57 @@ async function init() {
   const loadMsg = document.getElementById('loadingMsg');
   loadMsg.textContent = 'Loading from Google Sheets...';
 
-  // GASとlocalStorageの両方から並行取得
-  const [remotePagesRes, remoteCatsRes] = await Promise.allSettled([
-    loadPagesRemote(),
-    loadCatsRemote()
-  ]);
+  // まずlocalStorageで即時表示（体感速度向上）
+  try { pages = JSON.parse(localStorage.getItem(LS_PAGES) || '[]'); } catch { pages = []; }
+  try {
+    const defCats = [{id:'general',name:'General',color:'#3b9eff'},{id:'manual',name:'Manual',color:'#2ecc71'},{id:'meeting',name:'Meeting Note',color:'#f39c12'}];
+    cats = JSON.parse(localStorage.getItem(LS_CATS) || JSON.stringify(defCats));
+  } catch { cats = []; }
 
-  pages = remotePagesRes.status === 'fulfilled' ? remotePagesRes.value : [];
-  cats  = remoteCatsRes.status  === 'fulfilled' ? remoteCatsRes.value  : [];
-
-  // ローディング画面を消す
+  // ローディング画面を消してlocalStorageの内容で描画
   const overlay = document.getElementById('loadingOverlay');
   overlay.classList.add('hide');
   setTimeout(() => overlay.remove(), 500);
-
   renderSidebar();
   if (pages.length > 0) viewPage(pages[0].id); else showEmpty();
 
   document.querySelectorAll('.overlay').forEach(el => {
     el.addEventListener('click', e => { if (e.target===el) el.classList.remove('open'); });
   });
+
+  // バックグラウンドでGASから最新データを取得して差分があれば更新
+  await syncFromGAS();
+
+  // 30秒ごとに自動で最新データを取得（複数人対応）
+  setInterval(syncFromGAS, 30000);
+}
+
+async function syncFromGAS() {
+  const [remotePagesRes, remoteCatsRes] = await Promise.allSettled([
+    loadPagesRemote(),
+    loadCatsRemote()
+  ]);
+
+  const newPages = remotePagesRes.status === 'fulfilled' ? remotePagesRes.value : null;
+  const newCats  = remoteCatsRes.status  === 'fulfilled' ? remoteCatsRes.value  : null;
+
+  // データに変化があった場合のみ再描画
+  let changed = false;
+  if (newPages && JSON.stringify(newPages) !== JSON.stringify(pages)) {
+    pages = newPages; changed = true;
+  }
+  if (newCats && JSON.stringify(newCats) !== JSON.stringify(cats)) {
+    cats = newCats; changed = true;
+  }
+
+  if (changed) {
+    renderSidebar();
+    // 現在表示中のページが更新されていたら再描画、削除されていたら先頭へ
+    if (currentId) {
+      const still = pages.find(p => p.id === currentId);
+      if (still) viewPage(currentId); else { currentId = null; if (pages.length > 0) viewPage(pages[0].id); else showEmpty(); }
+    }
+  }
 }
 
 init();
