@@ -537,7 +537,7 @@ mark { background: none; color: var(--black); text-decoration: underline; text-d
    （「デプロイ」→「ウェブアプリとして導入」で発行される
      https://script.google.com/macros/s/xxxxxxx/exec 形式のURL）
 ═══════════════════════════════════════════════════ */
-const GAS_URL = 'https://script.google.com/macros/s/AKfycby-oRdFrINAL1ihfjn5IxNRiP21024mOKs88iGWlPtkDzF_BZ1bxWdYXbdlzMWOH8-e/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzUGj13BE_EgwGcc1kpeDizZpiHe6b1PwRV2FYlqQvuiZYLlaWsr937ixNx8BPAP9Ev/exec';
 /* ═══════════════════════════════════════════════════ */
 
 /* ─── パスワード認証 ─── */
@@ -572,20 +572,35 @@ function setSyncState(state) {
 }
 
 // GASへのリクエストはすべてGETで行う
-async function gasCall(action, payload = {}) {
-  try {
+function gasCall(action, payload = {}) {
+  return new Promise((resolve) => {
+    const callbackName = 'gasCallback_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+
+    window[callbackName] = function(data) {
+      resolve(data);
+      delete window[callbackName];
+      script.remove();
+    };
+
     const params = new URLSearchParams({
       action,
       data: JSON.stringify(payload),
+      callback: callbackName,
       t: Date.now()
     });
-    const res = await fetch(GAS_URL + '?' + params.toString());
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    return await res.json();
-  } catch (e) {
-    console.warn('GAS request failed:', e);
-    return null;
-  }
+
+    const script = document.createElement('script');
+    script.src = GAS_URL + '?' + params.toString();
+
+    script.onerror = function() {
+      console.warn('GAS JSONP request failed');
+      resolve(null);
+      delete window[callbackName];
+      script.remove();
+    };
+
+    document.body.appendChild(script);
+  });
 }
 
 // debounce: 連続した書き込みをまとめて遅延実行
@@ -876,8 +891,8 @@ async function confirmDeleteCat() {
   pages = pages.map(p => p.category === deleteCatTarget ? {...p, category:fallback} : p);
   localStorage.setItem(LS_CATS, JSON.stringify(cats));
   localStorage.setItem(LS_PAGES, JSON.stringify(pages));
-  await gasRequest('saveCats', { cats });
-  await gasRequest('saveAllPages', { pages });
+  await gasCall('saveCats', { cats });
+  await gasCall('saveAllPages', { pages });
   if (filterCat === deleteCatTarget) filterCat = 'all';
   closeModal('deleteCatModal'); renderSidebar();
   if (currentId) viewPage(currentId); else if (pages.length > 0) viewPage(pages[0].id); else showEmpty();
