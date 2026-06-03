@@ -1065,33 +1065,59 @@ function imageFileToDataUrl(file) {
 
 function insertHtmlAtCursor(html) {
   const editor = document.getElementById('eBody');
+  if (!editor) return false;
   editor.focus();
 
   const selection = window.getSelection();
   if (!selection || !selection.rangeCount) {
     editor.insertAdjacentHTML('beforeend', html);
-    return;
+    return true;
   }
 
   const range = selection.getRangeAt(0);
   if (!editor.contains(range.commonAncestorContainer)) {
     editor.insertAdjacentHTML('beforeend', html);
-    return;
+    return true;
   }
 
   range.deleteContents();
   const wrap = document.createElement('div');
   wrap.innerHTML = html;
   const node = wrap.firstChild;
+  if (!node) return false;
   range.insertNode(node);
   range.setStartAfter(node);
   range.setEndAfter(node);
   selection.removeAllRanges();
   selection.addRange(range);
+  return true;
 }
 
 function insertTextAtCursor(text) {
-  insertHtmlAtCursor(escH(text));
+  const editor = document.getElementById('eBody');
+  if (!editor) return false;
+  editor.focus();
+
+  const selection = window.getSelection();
+  if (!selection || !selection.rangeCount) {
+    editor.appendChild(document.createTextNode(text));
+    return true;
+  }
+
+  const range = selection.getRangeAt(0);
+  if (!editor.contains(range.commonAncestorContainer)) {
+    editor.appendChild(document.createTextNode(text));
+    return true;
+  }
+
+  range.deleteContents();
+  const node = document.createTextNode(text);
+  range.insertNode(node);
+  range.setStartAfter(node);
+  range.setEndAfter(node);
+  selection.removeAllRanges();
+  selection.addRange(range);
+  return true;
 }
 
 async function savePage(id) {
