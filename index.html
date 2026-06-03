@@ -876,8 +876,8 @@ async function confirmDeleteCat() {
   pages = pages.map(p => p.category === deleteCatTarget ? {...p, category:fallback} : p);
   localStorage.setItem(LS_CATS, JSON.stringify(cats));
   localStorage.setItem(LS_PAGES, JSON.stringify(pages));
-  await gasRequest('saveCats', { cats });
-  await gasRequest('saveAllPages', { pages });
+  await gasCall('saveCats', { cats });
+  await gasCall('saveAllPages', { pages });
   if (filterCat === deleteCatTarget) filterCat = 'all';
   closeModal('deleteCatModal'); renderSidebar();
   if (currentId) viewPage(currentId); else if (pages.length > 0) viewPage(pages[0].id); else showEmpty();
