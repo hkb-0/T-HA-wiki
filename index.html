@@ -91,9 +91,8 @@ body {
   margin-bottom: 6px;
 }
 .cat-list { list-style: none; }
-.cat-item { position: relative; }
-.cat-item { cursor: grab;}
-.cat-item:active {cursor: grabbing;}
+.cat-item { position: relative; cursor: grab; }
+.cat-item:active { cursor: grabbing; }
 .cat-btn {
   width: 100%;
   background: none; border: none;
@@ -320,7 +319,6 @@ textarea.input-text {
   gap: 6px;
   margin-bottom: 8px;
 }
-
 .format-bar button {
   border: 1px solid var(--grey1);
   background: transparent;
@@ -328,7 +326,6 @@ textarea.input-text {
   cursor: pointer;
   font-size: 12px;
 }
-
 .editable-body {
   min-height: 360px;
   border: 1px solid var(--grey1);
@@ -339,19 +336,10 @@ textarea.input-text {
   outline: none;
   white-space: pre-wrap;
 }
-.editable-body b,
-.editable-body strong {
-  font-weight: 700;
-}
+.editable-body b, .editable-body strong { font-weight: 700; }
+.editable-body mark { background: #fff3a3; padding: 0 2px; }
+.editable-body span[style*="color"] { font-weight: 500; }
 
-.editable-body mark {
-  background: #fff3a3;
-  padding: 0 2px;
-}
-
-.editable-body span[style*="color"] {
-  font-weight: 500;
-}
 .cat-select-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .cat-opt {
   display: flex; align-items: center; gap: 7px;
@@ -366,13 +354,8 @@ textarea.input-text {
 .cat-opt.sel { border-color: var(--black); color: var(--black); font-weight: 500; }
 .cat-opt input { display: none; }
 
-/* Link display toggle in editor */
-.link-opts-hint {
-  font-size: 11px; color: var(--grey2); margin-top: 8px; letter-spacing: 0.3px;
-}
-.link-opts-hint code {
-  background: var(--grey1); padding: 1px 6px; font-size: 11px; letter-spacing: 0;
-}
+.link-opts-hint { font-size: 11px; color: var(--grey2); margin-top: 8px; letter-spacing: 0.3px; }
+.link-opts-hint code { background: var(--grey1); padding: 1px 6px; font-size: 11px; letter-spacing: 0; }
 
 /* Empty */
 .empty {
@@ -420,15 +403,61 @@ mark { background: none; color: var(--black); text-decoration: underline; text-d
 .swatch { width: 24px; height: 24px; cursor: pointer; border: 2px solid transparent; transition: border-color 0.12s, transform 0.1s; }
 .swatch:hover { transform: scale(1.15); }
 .swatch.sel { border-color: var(--black); }
+
+/* ── Loading overlay ── */
+#loadingOverlay {
+  position: fixed; inset: 0; z-index: 999;
+  background: #111110;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 16px;
+  transition: opacity 0.4s;
+}
+#loadingOverlay.hide { opacity: 0; pointer-events: none; }
+.loading-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 300; font-size: 18px;
+  letter-spacing: 6px; text-transform: uppercase;
+  color: rgba(255,255,255,0.7);
+}
+.loading-spinner {
+  width: 24px; height: 24px;
+  border: 1.5px solid rgba(255,255,255,0.15);
+  border-top-color: rgba(255,255,255,0.7);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.loading-msg { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.35); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* sync indicator */
+.sync-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #2ecc71; flex-shrink: 0;
+  transition: background 0.3s;
+}
+.sync-dot.syncing { background: #f39c12; animation: pulse 1s infinite; }
+.sync-dot.error   { background: #e74c3c; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 </style>
 </head>
 <body>
-<div class="app">
 
+<!-- Loading screen -->
+<div id="loadingOverlay">
+  <div class="loading-logo">T+HA WIKI</div>
+  <div class="loading-spinner"></div>
+  <div class="loading-msg" id="loadingMsg">Loading...</div>
+</div>
+
+<div class="app">
   <aside class="sidebar">
     <div class="sidebar-top">
       <div class="logo">T+HA WIKI</div>
-      <div class="logo-sub">Internal Knowledge Base</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+        <div class="logo-sub">Internal Knowledge Base</div>
+        <div class="sync-dot" id="syncDot" title="同期状態"></div>
+      </div>
       <div class="search-wrap">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         <input type="text" id="globalSearch" placeholder="Search pages..." oninput="handleSearch(this.value)">
@@ -452,7 +481,7 @@ mark { background: none; color: var(--black); text-decoration: underline; text-d
   </aside>
 
   <main class="main" id="main">
-    <div class="empty" id="emptyState">
+    <div class="empty">
       <div class="empty-heading">Wiki</div>
       <div class="empty-sub">Create your first page</div>
     </div>
@@ -483,7 +512,7 @@ mark { background: none; color: var(--black); text-decoration: underline; text-d
   </div>
 </div>
 
-<!-- New category modal -->
+<!-- New / Edit category modal -->
 <div class="overlay" id="newCatModal">
   <div class="modal">
     <div class="modal-title">New Category</div>
@@ -497,131 +526,203 @@ mark { background: none; color: var(--black); text-decoration: underline; text-d
     </div>
     <div class="modal-btns" style="margin-top:20px">
       <button class="tbtn" onclick="closeModal('newCatModal')">Cancel</button>
-      <button class="tbtn tbtn-fill" onclick="addCategory()">Add</button>
+      <button class="tbtn tbtn-fill" id="catModalSaveBtn" onclick="addCategory()">Add</button>
     </div>
   </div>
 </div>
 
 <script>
-  /* ─── 簡易パスワード認証 ─── */
-(function() {
-  const CORRECT_PASSWORD = "T+HA2026"; // 好きなパスワードに変えてください
-  
-  // すでにパスワード認証済みかチェック
-  if (sessionStorage.getItem("wiki_authenticated") === "true") {
-    return; // 認証済みならそのままWikiを表示
-  }
+/* ═══════════════════════════════════════════════════
+   ▼ GAS ウェブアプリ URL をここに設定してください ▼
+   （「デプロイ」→「ウェブアプリとして導入」で発行される
+     https://script.google.com/macros/s/xxxxxxx/exec 形式のURL）
+═══════════════════════════════════════════════════ */
+const GAS_URL = 'https://script.google.com/macros/s/https://script.google.com/macros/s/AKfycbysjJ_04HrKlZVbNRCLTammvfPowNg3r-vNS-Y_6QsS0nuae9vmfu2Ls3Wi4nZbjwen/exec/exec';
+/* ═══════════════════════════════════════════════════ */
 
-  // パスワードが合うまで無限ループで聞き続ける
+/* ─── パスワード認証 ─── */
+(function() {
+  const CORRECT_PASSWORD = "T+HA2026";
+  if (sessionStorage.getItem("wiki_authenticated") === "true") return;
   let password = "";
   while (password !== CORRECT_PASSWORD) {
     password = prompt("社内専用Wiki：パスワードを入力してください");
-    
-    // キャンセルされた場合
     if (password === null) {
-      document.body.innerHTML = "<h1 style='font-family:sans-serif; text-align:center; margin-top:100px; color:#555;'>アクセス権限がありません。</h1>";
+      document.body.innerHTML = "<h1 style='font-family:sans-serif;text-align:center;margin-top:100px;color:#555;'>アクセス権限がありません。</h1>";
       throw new Error("Authentication canceled");
     }
-    
-    if (password !== CORRECT_PASSWORD) {
-      alert("パスワードが違います。");
-    }
+    if (password !== CORRECT_PASSWORD) alert("パスワードが違います。");
   }
-
-  // 合っていたら「認証済み」の合言葉をブラウザに記憶させる
   sessionStorage.setItem("wiki_authenticated", "true");
 })();
-/* ───  Storage  ─── */
-const PK='wiki_pages_v2', CK='wiki_cats_v2';
-function loadPages(){ try{ return JSON.parse(localStorage.getItem(PK)||'[]'); }catch{ return []; } }
-function savePages(p){ localStorage.setItem(PK,JSON.stringify(p)); }
-function loadCats(){
-  const d=[
+
+/* ═══════════════════════════════════════════════════
+   GAS Storage Layer
+   localStorage をフォールバックとして保持しつつ、
+   すべての読み書きを GAS スプレッドシートと同期する
+═══════════════════════════════════════════════════ */
+const LS_PAGES = 'wiki_pages_v2';
+const LS_CATS  = 'wiki_cats_v2';
+
+function setSyncState(state) {
+  const dot = document.getElementById('syncDot');
+  if (!dot) return;
+  dot.className = 'sync-dot' + (state === 'syncing' ? ' syncing' : state === 'error' ? ' error' : '');
+  dot.title = state === 'syncing' ? '同期中...' : state === 'error' ? '同期エラー（ローカル保存済み）' : '同期済み';
+}
+
+async function gasRequest(action, payload = {}) {
+  setSyncState('syncing');
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      mode: 'no-cors', // GASはno-corsが必要
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...payload })
+    });
+    // no-cors では response.json() が使えないため GET で読み込む
+    setSyncState('ok');
+    return true;
+  } catch (e) {
+    console.warn('GAS write failed, localStorage only:', e);
+    setSyncState('error');
+    return false;
+  }
+}
+
+async function gasGet(action) {
+  setSyncState('syncing');
+  try {
+    const url = GAS_URL + '?action=' + action + '&t=' + Date.now();
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    setSyncState('ok');
+    return json;
+  } catch (e) {
+    console.warn('GAS read failed, using localStorage:', e);
+    setSyncState('error');
+    return null;
+  }
+}
+
+/* ─── Pages ─── */
+async function loadPagesRemote() {
+  const data = await gasGet('getPages');
+  if (data && Array.isArray(data.pages)) {
+    localStorage.setItem(LS_PAGES, JSON.stringify(data.pages));
+    return data.pages;
+  }
+  // フォールバック: localStorage
+  try { return JSON.parse(localStorage.getItem(LS_PAGES) || '[]'); } catch { return []; }
+}
+
+async function savePageRemote(pageObj) {
+  localStorage.setItem(LS_PAGES, JSON.stringify(pages));
+  await gasRequest('savePage', { page: pageObj });
+}
+
+async function deletePageRemote(id) {
+  localStorage.setItem(LS_PAGES, JSON.stringify(pages));
+  await gasRequest('deletePage', { id });
+}
+
+/* ─── Cats ─── */
+async function loadCatsRemote() {
+  const data = await gasGet('getCats');
+  if (data && Array.isArray(data.cats)) {
+    localStorage.setItem(LS_CATS, JSON.stringify(data.cats));
+    return data.cats;
+  }
+  const defaults = [
     {id:'general', name:'General',      color:'#3b9eff'},
     {id:'manual',  name:'Manual',       color:'#2ecc71'},
     {id:'meeting', name:'Meeting Note', color:'#f39c12'},
   ];
-  try{ return JSON.parse(localStorage.getItem(CK)||JSON.stringify(d)); }catch{ return d; }
+  try { return JSON.parse(localStorage.getItem(LS_CATS) || JSON.stringify(defaults)); } catch { return defaults; }
 }
-function saveCats(c){ localStorage.setItem(CK,JSON.stringify(c)); }
+
+async function saveCatsRemote() {
+  localStorage.setItem(LS_CATS, JSON.stringify(cats));
+  await gasRequest('saveCats', { cats });
+}
+
+/* ─── 旧 sync ヘルパー（後方互換ラッパー） ─── */
+function savePages(p) {
+  pages = p;
+  localStorage.setItem(LS_PAGES, JSON.stringify(p));
+  // 非同期でGASにも書き込む（await不要）
+  gasRequest('saveAllPages', { pages: p });
+}
+function saveCats(c) {
+  cats = c;
+  localStorage.setItem(LS_CATS, JSON.stringify(c));
+  gasRequest('saveCats', { cats: c });
+}
 
 /* ─── State ─── */
-let pages=loadPages(), cats=loadCats();
-let currentId=null, filterCat='all', deleteTarget=null, deleteCatTarget=null, selColor='#3b9eff';
+let pages = [], cats = [];
+let currentId = null, filterCat = 'all', deleteTarget = null, deleteCatTarget = null, selColor = '#3b9eff';
 
-// Bright, vivid swatch palette
-const SWATCHES=[
+const SWATCHES = [
   '#3b9eff','#2ecc71','#f39c12','#e74c3c',
   '#9b59b6','#1abc9c','#e91e8c','#ff6b35',
   '#00bcd4','#8bc34a','#ff9800','#607d8b'
 ];
 let draggedCatId = null;
 
-function dragStart(e){
-  draggedCatId = e.currentTarget.dataset.id;
-}
-
-function dragOver(e){
+/* ─── Drag & drop categories ─── */
+function dragStart(e) { draggedCatId = e.currentTarget.dataset.id; }
+function dragOver(e)  { e.preventDefault(); }
+function dropCat(e) {
   e.preventDefault();
-}
-
-function dropCat(e){
-  e.preventDefault();
-
   const targetId = e.currentTarget.dataset.id;
-  if(draggedCatId === targetId) return;
-
-  const fromIndex = cats.findIndex(c => c.id === draggedCatId);
-  const toIndex = cats.findIndex(c => c.id === targetId);
-
-  const moved = cats.splice(fromIndex, 1)[0];
-  cats.splice(toIndex, 0, moved);
-
+  if (draggedCatId === targetId) return;
+  const fi = cats.findIndex(c => c.id === draggedCatId);
+  const ti = cats.findIndex(c => c.id === targetId);
+  const moved = cats.splice(fi, 1)[0];
+  cats.splice(ti, 0, moved);
   saveCats(cats);
   renderSidebar();
 }
+
 /* ─── Sidebar render ─── */
-function renderSidebar(){
-  const catList=document.getElementById('catList');
-  let html=`<li class="cat-item">
-  <button class="cat-btn${filterCat==='all'?' active':''}" onclick="filterBy('all')">
-    <span class="cat-dot" style="background:rgba(255,255,255,0.5)"></span>All
-    <span class="cat-count">${pages.length}</span>
-  </button>
-</li>`;
-  cats.forEach(c=>{
-  const n=pages.filter(p=>p.category===c.id).length;
-
-html+=`<li class="cat-item"
-  draggable="true"
-  data-id="${c.id}"
-  ondragstart="dragStart(event)"
-  ondragover="dragOver(event)"
-  ondrop="dropCat(event)"
-  ondblclick="openEditCatModal('${c.id}',event)">
-
-  <button class="cat-btn${filterCat===c.id?' active':''}" onclick="filterBy('${c.id}')">
-    <span class="cat-dot" style="background:${c.color}"></span>${c.name}
-    <span class="cat-count">${n}</span>
-  </button>
-
-  <button class="cat-del-btn" title="カテゴリを削除" onclick="openDeleteCatModal('${c.id}',event)">
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <line x1="18" y1="6" x2="6" y2="18"/>
-      <line x1="6" y1="6" x2="18" y2="18"/>
-    </svg>
-  </button>
-
-</li>`;
+function renderSidebar() {
+  const catList = document.getElementById('catList');
+  let html = `<li class="cat-item">
+    <button class="cat-btn${filterCat==='all'?' active':''}" onclick="filterBy('all')">
+      <span class="cat-dot" style="background:rgba(255,255,255,0.5)"></span>All
+      <span class="cat-count">${pages.length}</span>
+    </button>
+  </li>`;
+  cats.forEach(c => {
+    const n = pages.filter(p => p.category === c.id).length;
+    html += `<li class="cat-item"
+      draggable="true" data-id="${c.id}"
+      ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="dropCat(event)"
+      ondblclick="openEditCatModal('${c.id}',event)">
+      <button class="cat-btn${filterCat===c.id?' active':''}" onclick="filterBy('${c.id}')">
+        <span class="cat-dot" style="background:${c.color}"></span>${c.name}
+        <span class="cat-count">${n}</span>
+      </button>
+      <button class="cat-del-btn" title="カテゴリを削除" onclick="openDeleteCatModal('${c.id}',event)">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </li>`;
   });
-  catList.innerHTML=html;
+  catList.innerHTML = html;
 
-  const filtered=(filterCat==='all'?pages:pages.filter(p=>p.category===filterCat))
-    .sort((a,b)=>b.updatedAt-a.updatedAt);
-  const pl=document.getElementById('pageList');
-  if(!filtered.length){ pl.innerHTML=`<li style="padding:10px 24px;font-size:11px;color:rgba(255,255,255,0.3)">No pages yet</li>`; return; }
-  pl.innerHTML=filtered.map(p=>{
-    const cat=cats.find(c=>c.id===p.category);
+  const filtered = (filterCat === 'all' ? pages : pages.filter(p => p.category === filterCat))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+  const pl = document.getElementById('pageList');
+  if (!filtered.length) {
+    pl.innerHTML = `<li style="padding:10px 24px;font-size:11px;color:rgba(255,255,255,0.3)">No pages yet</li>`;
+    return;
+  }
+  pl.innerHTML = filtered.map(p => {
+    const cat = cats.find(c => c.id === p.category);
     return `<li><button class="page-btn${p.id===currentId?' active':''}" onclick="viewPage('${p.id}')">
       <span class="page-btn-title">${p.title||'Untitled'}</span>
       <span class="page-btn-sub">${cat?cat.name+' · ':''}${fmtDate(p.updatedAt)}</span>
@@ -630,11 +731,11 @@ html+=`<li class="cat-item"
 }
 
 /* ─── View page ─── */
-function viewPage(id){
-  const p=pages.find(x=>x.id===id); if(!p) return;
-  currentId=id; renderSidebar();
-  const cat=cats.find(c=>c.id===p.category);
-  document.getElementById('main').innerHTML=`
+function viewPage(id) {
+  const p = pages.find(x => x.id === id); if (!p) return;
+  currentId = id; renderSidebar();
+  const cat = cats.find(c => c.id === p.category);
+  document.getElementById('main').innerHTML = `
     <div class="toolbar">
       <span class="toolbar-title">${p.title||'Untitled'}</span>
       <button class="tbtn" onclick="showEditor('${id}')">
@@ -656,54 +757,32 @@ function viewPage(id){
 }
 
 /* ─── Link rendering ─── */
-// Syntax:
-//   bare URL            → full URL link
-//   [label](url)        → short chip link
-//   [icon](url)         → link icon button
-function renderBody(text){
+function renderBody(text) {
   let out = text;
-
-  // [icon](url) → icon button
-  out = out.replace(/\[icon\]\((https?:\/\/[^\s)]+)\)/g,(_,url)=>{
-    const domain=getDomain(url);
-    return `<a class="link-icon" href="${url}" target="_blank" rel="noopener" title="${url}">
-      <img src="https://www.google.com/s2/favicons?domain=${domain}&sz=16" width="14" height="14" onerror="this.style.display='none';this.parentNode.innerHTML='🔗';" style="image-rendering:auto">
-    </a>`;
+  out = out.replace(/\[icon\]\((https?:\/\/[^\s)]+)\)/g, (_, url) => {
+    const domain = getDomain(url);
+    return `<a class="link-icon" href="${url}" target="_blank" rel="noopener" title="${url}"><img src="https://www.google.com/s2/favicons?domain=${domain}&sz=16" width="14" height="14" onerror="this.style.display='none';this.parentNode.innerHTML='🔗';" style="image-rendering:auto"></a>`;
   });
-
-  // [label](url) → short chip
-  out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,(_,label,url)=>{
-    return `<a class="link-short" href="${url}" target="_blank" rel="noopener">
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-      </svg>
-      ${label}
-    </a>`;
+  out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_, label, url) => {
+    return `<a class="link-short" href="${url}" target="_blank" rel="noopener"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>${label}</a>`;
   });
-
-  // bare URLs → full link
   out = out.replace(/(^|[\s>])(https?:\/\/[^\s<"]+)/g, '$1<a class="link-full" href="$2" target="_blank" rel="noopener">$2</a>');
-
   return out;
 }
-
-function getDomain(url){
-  try{ return new URL(url).hostname; }catch{ return url; }
-}
+function getDomain(url) { try { return new URL(url).hostname; } catch { return url; } }
 
 /* ─── Editor ─── */
-function showEditor(id){
-  const isNew=id===null;
-  const p=isNew?{title:'',body:'',category:cats[0]?.id||''}:pages.find(x=>x.id===id);
-  if(!p) return;
-  currentId=id; renderSidebar();
-  const catOpts=cats.map(c=>`
+function showEditor(id) {
+  const isNew = id === null;
+  const p = isNew ? { title:'', body:'', category: cats[0]?.id||'' } : pages.find(x => x.id === id);
+  if (!p) return;
+  currentId = id; renderSidebar();
+  const catOpts = cats.map(c => `
     <label class="cat-opt${p.category===c.id?' sel':''}" onclick="selCat(this,'${c.id}')">
       <input type="radio" name="pc" value="${c.id}" ${p.category===c.id?'checked':''}>
       <span class="cat-dot" style="background:${c.color}"></span>${c.name}
     </label>`).join('');
-  document.getElementById('main').innerHTML=`
+  document.getElementById('main').innerHTML = `
     <div class="toolbar">
       <span class="toolbar-title">${isNew?'New Page':'Editing'}</span>
       <button class="tbtn" onclick="${isNew?'cancelNew()':`viewPage('${id}')`}">Cancel</button>
@@ -720,110 +799,121 @@ function showEditor(id){
       <div class="field">
         <label class="field-label">Content</label>
         <div class="format-bar">
-  <button type="button" onmousedown="event.preventDefault(); formatText('bold')"><b>B</b></button>
-  <button type="button" onclick="formatText('hiliteColor','#fff3a3')">Marker</button>
-  <button type="button" onclick="formatText('foreColor','#d94848')">Red</button>
-  <button type="button" onclick="formatText('removeFormat')">Clear</button>
-</div>
-
-<div class="editable-body" id="eBody" contenteditable="true" placeholder="テキストを入力...">${p.body||''}</div>
+          <button type="button" onmousedown="event.preventDefault();formatText('bold')"><b>B</b></button>
+          <button type="button" onclick="formatText('hiliteColor','#fff3a3')">Marker</button>
+          <button type="button" onclick="formatText('foreColor','#d94848')">Red</button>
+          <button type="button" onclick="formatText('removeFormat')">Clear</button>
+        </div>
+        <div class="editable-body" id="eBody" contenteditable="true" placeholder="テキストを入力...">${p.body||''}</div>
         <div class="link-opts-hint">
-          リンクの表示形式：<br>
-          通常URL → フルリンク表示 ｜
-          <code>[ラベル](URL)</code> → ショートリンク ｜
-          <code>[icon](URL)</code> → アイコンボタン
+          リンクの表示形式：通常URL → フルリンク ｜ <code>[ラベル](URL)</code> → ショートリンク ｜ <code>[icon](URL)</code> → アイコン
         </div>
       </div>
     </div>`;
   document.getElementById('eTitle').focus();
 }
 
-function selCat(el,id){
-  document.querySelectorAll('.cat-opt').forEach(o=>o.classList.remove('sel'));
-  el.classList.add('sel'); el.querySelector('input').checked=true;
+function selCat(el, id) {
+  document.querySelectorAll('.cat-opt').forEach(o => o.classList.remove('sel'));
+  el.classList.add('sel'); el.querySelector('input').checked = true;
 }
-function formatText(command, value=null){
+function formatText(command, value = null) {
   document.execCommand(command, false, value);
   document.getElementById('eBody').focus();
 }
-function savePage(id){
-  const title=document.getElementById('eTitle').value.trim();
-  const body=document.getElementById('eBody').innerHTML;
-  const catEl=document.querySelector('input[name="pc"]:checked');
-  const category=catEl?catEl.value:(cats[0]?.id||'');
-  if(!title){ alert('タイトルを入力してください'); return; }
-  if(id===null){
-    const np={id:'p'+Date.now(),title,body,category,createdAt:Date.now(),updatedAt:Date.now()};
-    pages.unshift(np); currentId=np.id;
+
+async function savePage(id) {
+  const title    = document.getElementById('eTitle').value.trim();
+  const body     = document.getElementById('eBody').innerHTML;
+  const catEl    = document.querySelector('input[name="pc"]:checked');
+  const category = catEl ? catEl.value : (cats[0]?.id||'');
+  if (!title) { alert('タイトルを入力してください'); return; }
+
+  let pageObj;
+  if (id === null) {
+    pageObj = { id:'p'+Date.now(), title, body, category, createdAt:Date.now(), updatedAt:Date.now() };
+    pages.unshift(pageObj);
+    currentId = pageObj.id;
   } else {
-    const i=pages.findIndex(p=>p.id===id);
-    if(i>=0){ pages[i]={...pages[i],title,body,category,updatedAt:Date.now()}; currentId=id; }
+    const i = pages.findIndex(p => p.id === id);
+    if (i >= 0) {
+      pages[i] = { ...pages[i], title, body, category, updatedAt:Date.now() };
+      pageObj = pages[i];
+      currentId = id;
+    }
   }
-  savePages(pages); renderSidebar(); viewPage(currentId);
+  // ローカル即時保存 → GAS非同期同期
+  localStorage.setItem(LS_PAGES, JSON.stringify(pages));
+  await savePageRemote(pageObj);
+  renderSidebar();
+  viewPage(currentId);
 }
 
-function cancelNew(){
-  currentId=null; renderSidebar();
-  if(pages.length>0) viewPage(pages[0].id); else showEmpty();
+function cancelNew() {
+  currentId = null; renderSidebar();
+  if (pages.length > 0) viewPage(pages[0].id); else showEmpty();
 }
-function showEmpty(){
-  document.getElementById('main').innerHTML=`<div class="empty"><div class="empty-heading">Wiki</div><div class="empty-sub">Create your first page</div></div>`;
+function showEmpty() {
+  document.getElementById('main').innerHTML = `<div class="empty"><div class="empty-heading">Wiki</div><div class="empty-sub">Create your first page</div></div>`;
 }
 
 /* ─── Delete page ─── */
-function openDeleteModal(id){ deleteTarget=id; document.getElementById('deleteModal').classList.add('open'); }
-function confirmDelete(){
-  pages=pages.filter(p=>p.id!==deleteTarget);
-  savePages(pages); currentId=null;
+function openDeleteModal(id) { deleteTarget = id; document.getElementById('deleteModal').classList.add('open'); }
+async function confirmDelete() {
+  pages = pages.filter(p => p.id !== deleteTarget);
+  localStorage.setItem(LS_PAGES, JSON.stringify(pages));
+  await deletePageRemote(deleteTarget);
+  currentId = null;
   closeModal('deleteModal'); renderSidebar();
-  if(pages.length>0) viewPage(pages[0].id); else showEmpty();
+  if (pages.length > 0) viewPage(pages[0].id); else showEmpty();
 }
 
 /* ─── Delete category ─── */
-function openDeleteCatModal(id,e){
+function openDeleteCatModal(id, e) {
   e.stopPropagation();
-  deleteCatTarget=id;
-  const cat=cats.find(c=>c.id===id);
-  const n=pages.filter(p=>p.category===id).length;
-  document.getElementById('deleteCatMsg').textContent=
-    `「${cat?.name}」を削除しますか？${n>0?`このカテゴリのページ${n}件は「カテゴリなし」になります。`:''}この操作は取り消せません。`;
+  deleteCatTarget = id;
+  const cat = cats.find(c => c.id === id);
+  const n = pages.filter(p => p.category === id).length;
+  document.getElementById('deleteCatMsg').textContent =
+    `「${cat?.name}」を削除しますか？${n>0?`このカテゴリのページ${n}件は最初のカテゴリに移動します。`:''}この操作は取り消せません。`;
   document.getElementById('deleteCatModal').classList.add('open');
 }
-function confirmDeleteCat(){
-  cats=cats.filter(c=>c.id!==deleteCatTarget);
-  saveCats(cats);
-  // reassign pages in this cat to first available cat or empty
-  const fallback=cats[0]?.id||'';
-  pages=pages.map(p=>p.category===deleteCatTarget?{...p,category:fallback}:p);
-  savePages(pages);
-  if(filterCat===deleteCatTarget) filterCat='all';
+async function confirmDeleteCat() {
+  cats = cats.filter(c => c.id !== deleteCatTarget);
+  const fallback = cats[0]?.id || '';
+  pages = pages.map(p => p.category === deleteCatTarget ? {...p, category:fallback} : p);
+  localStorage.setItem(LS_CATS, JSON.stringify(cats));
+  localStorage.setItem(LS_PAGES, JSON.stringify(pages));
+  await gasRequest('saveCats', { cats });
+  await gasRequest('saveAllPages', { pages });
+  if (filterCat === deleteCatTarget) filterCat = 'all';
   closeModal('deleteCatModal'); renderSidebar();
-  if(currentId) viewPage(currentId); else if(pages.length>0) viewPage(pages[0].id); else showEmpty();
+  if (currentId) viewPage(currentId); else if (pages.length > 0) viewPage(pages[0].id); else showEmpty();
 }
 
-function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
 /* ─── Filter ─── */
-function filterBy(cat){
-  filterCat=cat; renderSidebar();
-  const list=(cat==='all'?pages:pages.filter(p=>p.category===cat)).sort((a,b)=>b.updatedAt-a.updatedAt);
-  if(list.length) viewPage(list[0].id); else showEmpty();
+function filterBy(cat) {
+  filterCat = cat; renderSidebar();
+  const list = (cat==='all'?pages:pages.filter(p=>p.category===cat)).sort((a,b)=>b.updatedAt-a.updatedAt);
+  if (list.length) viewPage(list[0].id); else showEmpty();
 }
 
 /* ─── Search ─── */
-function handleSearch(q){
-  q=q.trim();
-  if(!q){ renderSidebar(); if(currentId) viewPage(currentId); else showEmpty(); return; }
-  const ql=q.toLowerCase();
-  const res=pages.filter(p=>p.title.toLowerCase().includes(ql)||(p.body||'').toLowerCase().includes(ql));
-  document.getElementById('main').innerHTML=`
+function handleSearch(q) {
+  q = q.trim();
+  if (!q) { renderSidebar(); if (currentId) viewPage(currentId); else showEmpty(); return; }
+  const ql = q.toLowerCase();
+  const res = pages.filter(p => p.title.toLowerCase().includes(ql)||(p.body||'').toLowerCase().includes(ql));
+  document.getElementById('main').innerHTML = `
     <div class="toolbar"><span class="toolbar-title">Search: ${q}</span></div>
     <div class="search-wrap-main">
       <div class="search-heading">${res.length} result${res.length!==1?'s':''}</div>
-      ${res.length===0?'<p style="font-size:12px;color:var(--grey2);letter-spacing:1px">No pages found.</p>':
-        res.map((p,i)=>{
-          const cat=cats.find(c=>c.id===p.category);
-          const ex=excerpt(p.body||'',ql);
+      ${res.length===0 ? '<p style="font-size:12px;color:var(--grey2);letter-spacing:1px">No pages found.</p>' :
+        res.map((p,i) => {
+          const cat = cats.find(c=>c.id===p.category);
+          const ex = excerpt(p.body||'', ql);
           return `<div class="result-item${i===res.length-1?' result-last':''}" onclick="viewPage('${p.id}');document.getElementById('globalSearch').value=''">
             <div class="result-title">${hl(p.title,q)}</div>
             ${ex?`<div class="result-excerpt">${hl(ex,q)}</div>`:''}
@@ -832,88 +922,58 @@ function handleSearch(q){
         }).join('')}
     </div>`;
 }
-function excerpt(text,q){
-  const i=text.toLowerCase().indexOf(q); if(i<0) return '';
-  const s=Math.max(0,i-50),e=Math.min(text.length,i+90);
+function excerpt(text, q) {
+  const i = text.toLowerCase().indexOf(q); if (i < 0) return '';
+  const s = Math.max(0,i-50), e = Math.min(text.length,i+90);
   return (s>0?'…':'')+text.slice(s,e)+(e<text.length?'…':'');
 }
-function hl(t,q){
-  const re=new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi');
-  return escH(t).replace(re,m=>`<mark>${m}</mark>`);
+function hl(t, q) {
+  const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi');
+  return escH(t).replace(re, m=>`<mark>${m}</mark>`);
 }
 
-/* ─── New category ─── */
-function openNewCatModal(){
-  document.getElementById('newCatName').value='';
-  selColor=SWATCHES[0];
-  document.getElementById('colorSwatches').innerHTML=SWATCHES.map(c=>
+/* ─── New / Edit category modal ─── */
+function openNewCatModal() {
+  document.getElementById('newCatName').value = '';
+  selColor = SWATCHES[0];
+  document.getElementById('colorSwatches').innerHTML = SWATCHES.map(c =>
     `<div class="swatch${c===selColor?' sel':''}" style="background:${c}" onclick="pickSwatch(this,'${c}')"></div>`).join('');
+  const btn = document.getElementById('catModalSaveBtn');
+  btn.textContent = 'Add';
+  btn.onclick = addCategory;
   document.getElementById('newCatModal').classList.add('open');
 }
-function pickSwatch(el,c){
-  selColor=c;
-  document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('sel'));
+function pickSwatch(el, c) {
+  selColor = c;
+  document.querySelectorAll('.swatch').forEach(s => s.classList.remove('sel'));
   el.classList.add('sel');
 }
-function addCategory(){
-  const name=document.getElementById('newCatName').value.trim();
-  if(!name){ alert('カテゴリ名を入力してください'); return; }
-  cats.push({id:'c'+Date.now(),name,color:selColor});
-  saveCats(cats); closeModal('newCatModal'); renderSidebar();
+async function addCategory() {
+  const name = document.getElementById('newCatName').value.trim();
+  if (!name) { alert('カテゴリ名を入力してください'); return; }
+  cats.push({ id:'c'+Date.now(), name, color:selColor });
+  await saveCatsRemote();
+  closeModal('newCatModal'); renderSidebar();
 }
-function openEditCatModal(id,e){
+function openEditCatModal(id, e) {
   e.stopPropagation();
-
-  const cat = cats.find(c => c.id === id);
-  if(!cat) return;
-
-  // 名前をセット
+  const cat = cats.find(c => c.id === id); if (!cat) return;
   document.getElementById('newCatName').value = cat.name;
-
-  // 色をセット
   selColor = cat.color;
-
-  // スウォッチ描画
-  document.getElementById('colorSwatches').innerHTML =
-    SWATCHES.map(c=>
-      `<div class="swatch${c===selColor?' sel':''}"
-        style="background:${c}"
-        onclick="pickSwatch(this,'${c}')"></div>`
-    ).join('');
-
-  // モーダル開く
-  document.getElementById('newCatModal').classList.add('open');
-
-  // Addボタンを一時的にSave化
-  const saveBtn = document.querySelector('#newCatModal .tbtn-fill');
-  saveBtn.textContent = 'Save';
-
-  saveBtn.onclick = function(){
-
-    const newName =
-      document.getElementById('newCatName').value.trim();
-
-    if(!newName){
-      alert('カテゴリ名を入力してください');
-      return;
-    }
-
-    cat.name = newName;
-    cat.color = selColor;
-
-    saveCats(cats);
-
-    closeModal('newCatModal');
-    renderSidebar();
-
-    if(currentId){
-      viewPage(currentId);
-    }
-
-    // ボタン戻す
-    saveBtn.textContent = 'Add';
-    saveBtn.onclick = addCategory;
+  document.getElementById('colorSwatches').innerHTML = SWATCHES.map(c =>
+    `<div class="swatch${c===selColor?' sel':''}" style="background:${c}" onclick="pickSwatch(this,'${c}')"></div>`).join('');
+  const btn = document.getElementById('catModalSaveBtn');
+  btn.textContent = 'Save';
+  btn.onclick = async function() {
+    const newName = document.getElementById('newCatName').value.trim();
+    if (!newName) { alert('カテゴリ名を入力してください'); return; }
+    cat.name = newName; cat.color = selColor;
+    await saveCatsRemote();
+    closeModal('newCatModal'); renderSidebar();
+    if (currentId) viewPage(currentId);
+    btn.textContent = 'Add'; btn.onclick = addCategory;
   };
+  document.getElementById('newCatModal').classList.add('open');
 }
 
 /* ─── Utils ─── */
@@ -931,21 +991,34 @@ function fmtFull(ts){
   return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
 }
 
-/* ─── Init ─── */
-renderSidebar();
-if(pages.length>0) viewPage(pages[0].id);
-else {
-  const sample=[{
-    id:'s1',title:'はじめに',category:'general',
-    body:'このWikiは社内の情報共有ツールです。\n\n【リンクの使い方】\n\n通常のURL（そのまま貼るとフルリンク）:\nhttps://toraohsieh.com/\n\nショートリンク（[ラベル](URL) の形式）:\n[会社HP](https://toraohsieh.com/)\n\nアイコンリンク（[icon](URL) の形式）:\n[icon](https://toraohsieh.com/)\n\n【データ保存】\nすべてのデータはこのブラウザのlocalStorageに保存されます。',
-    createdAt:Date.now()-86400000, updatedAt:Date.now()-3600000
-  }];
-  pages=sample; savePages(pages); renderSidebar(); viewPage('s1');
+/* ─── Init: GASからデータを読み込んで起動 ─── */
+async function init() {
+  const loadMsg = document.getElementById('loadingMsg');
+  loadMsg.textContent = 'Loading from Google Sheets...';
+
+  // GASとlocalStorageの両方から並行取得
+  const [remotePagesRes, remoteCatsRes] = await Promise.allSettled([
+    loadPagesRemote(),
+    loadCatsRemote()
+  ]);
+
+  pages = remotePagesRes.status === 'fulfilled' ? remotePagesRes.value : [];
+  cats  = remoteCatsRes.status  === 'fulfilled' ? remoteCatsRes.value  : [];
+
+  // ローディング画面を消す
+  const overlay = document.getElementById('loadingOverlay');
+  overlay.classList.add('hide');
+  setTimeout(() => overlay.remove(), 500);
+
+  renderSidebar();
+  if (pages.length > 0) viewPage(pages[0].id); else showEmpty();
+
+  document.querySelectorAll('.overlay').forEach(el => {
+    el.addEventListener('click', e => { if (e.target===el) el.classList.remove('open'); });
+  });
 }
 
-document.querySelectorAll('.overlay').forEach(el=>{
-  el.addEventListener('click',e=>{ if(e.target===el) el.classList.remove('open'); });
-});
+init();
 </script>
 </body>
 </html>
