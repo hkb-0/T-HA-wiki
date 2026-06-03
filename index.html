@@ -586,13 +586,17 @@ function clearLocalDirty() {
   localStorage.removeItem(LS_DIRTY);
 }
 
-// GASへのリクエストはJSONPで行う（file:// から開いてもCORSで止まりにくい）
+// 読み込みはJSONP、保存はPOSTで行う（長い本文をURLに載せない）
 let gasCallbackSeq = 0;
 async function gasCall(action, payload = {}) {
   if (!GAS_IS_CONFIGURED) {
     console.warn('GAS_URL is not configured. Please set your deployed web app URL.');
     setSyncState('error');
     return null;
+  }
+
+  if (action === 'saveAllPages' || action === 'saveCats') {
+    return gasPost(action, payload);
   }
 
   return new Promise(resolve => {
@@ -629,6 +633,58 @@ async function gasCall(action, payload = {}) {
     }, 20000);
 
     document.body.appendChild(script);
+  });
+}
+
+function gasPost(action, payload = {}) {
+  return new Promise(resolve => {
+    const iframeName = 'gasPostFrame_' + Date.now() + '_' + (gasCallbackSeq++);
+    const iframe = document.createElement('iframe');
+    iframe.name = iframeName;
+    iframe.style.display = 'none';
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = GAS_URL;
+    form.target = iframeName;
+    form.style.display = 'none';
+
+    const actionInput = document.createElement('input');
+    actionInput.name = 'action';
+    actionInput.value = action;
+    form.appendChild(actionInput);
+
+    const dataInput = document.createElement('input');
+    dataInput.name = 'data';
+    dataInput.value = JSON.stringify(payload);
+    form.appendChild(dataInput);
+
+    let done = false;
+    let submitted = false;
+    function cleanup(result) {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      setTimeout(() => {
+        iframe.remove();
+        form.remove();
+      }, 1000);
+      resolve(result);
+    }
+
+    iframe.onload = () => {
+      if (!submitted) return;
+      cleanup({ ok: true });
+    };
+    const timer = setTimeout(() => {
+      console.warn('GAS POST may have failed or timed out:', action);
+      cleanup(null);
+    }, 30000);
+
+    document.body.appendChild(iframe);
+    document.body.appendChild(form);
+    submitted = true;
+    form.submit();
   });
 }
 
