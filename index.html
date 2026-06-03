@@ -537,7 +537,8 @@ mark { background: none; color: var(--black); text-decoration: underline; text-d
    （「デプロイ」→「ウェブアプリとして導入」で発行される
      https://script.google.com/macros/s/xxxxxxx/exec 形式のURL）
 ═══════════════════════════════════════════════════ */
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbySB-P4ZBT8GSw1C8BzKW2AyRX538awEn85AVtxfXzqTa9biVs8MatZ_yRFFR1pfnmt/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyu0gu9yrhHtUF4OAmwfkKHtDsA3_rVfXjc5QzWcFSIbgKpM4pkN6lMdQfc1Ma8PuOa5w/exec';
+const GAS_IS_CONFIGURED = !GAS_URL.includes('YOUR_DEPLOY_ID_HERE');
 /* ═══════════════════════════════════════════════════ */
 
 /* ─── パスワード認証 ─── */
@@ -571,26 +572,59 @@ function setSyncState(state) {
   dot.title = state === 'syncing' ? '同期中...' : state === 'error' ? '同期エラー（ローカル保存済み）' : '同期済み';
 }
 
-// GASへのリクエストはすべてGETで行う
+// GASへのリクエストはJSONPで行う（file:// から開いてもCORSで止まりにくい）
+let gasCallbackSeq = 0;
 async function gasCall(action, payload = {}) {
-  try {
+  if (!GAS_IS_CONFIGURED) {
+    console.warn('GAS_URL is not configured. Please set your deployed web app URL.');
+    setSyncState('error');
+    return null;
+  }
+
+  return new Promise(resolve => {
+    const callbackName = '__gasCallback_' + Date.now() + '_' + (gasCallbackSeq++);
     const params = new URLSearchParams({
       action,
       data: JSON.stringify(payload),
+      callback: callbackName,
       t: Date.now()
     });
-    const res = await fetch(GAS_URL + '?' + params.toString());
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    return await res.json();
-  } catch (e) {
-    console.warn('GAS request failed:', e);
-    return null;
-  }
+    const script = document.createElement('script');
+    let done = false;
+
+    function cleanup(value) {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      delete window[callbackName];
+      script.remove();
+      resolve(value);
+    }
+
+    window[callbackName] = data => cleanup(data);
+    script.onerror = () => {
+      console.warn('GAS request failed:', action);
+      cleanup(null);
+    };
+    script.src = GAS_URL + '?' + params.toString();
+    script.async = true;
+
+    const timer = setTimeout(() => {
+      console.warn('GAS request timed out:', action);
+      cleanup(null);
+    }, 20000);
+
+    document.body.appendChild(script);
+  });
 }
 
 // debounce: 連続した書き込みをまとめて遅延実行
 let syncTimer = null;
 function schedulSync() {
+  if (!GAS_IS_CONFIGURED) {
+    setSyncState('error');
+    return;
+  }
   if (syncTimer) clearTimeout(syncTimer);
   syncTimer = setTimeout(async () => {
     setSyncState('syncing');
@@ -876,8 +910,7 @@ async function confirmDeleteCat() {
   pages = pages.map(p => p.category === deleteCatTarget ? {...p, category:fallback} : p);
   localStorage.setItem(LS_CATS, JSON.stringify(cats));
   localStorage.setItem(LS_PAGES, JSON.stringify(pages));
-  await gasRequest('saveCats', { cats });
-  await gasRequest('saveAllPages', { pages });
+  schedulSync();
   if (filterCat === deleteCatTarget) filterCat = 'all';
   closeModal('deleteCatModal'); renderSidebar();
   if (currentId) viewPage(currentId); else if (pages.length > 0) viewPage(pages[0].id); else showEmpty();
@@ -1014,6 +1047,11 @@ async function init() {
 }
 
 async function syncFromGAS() {
+  if (!GAS_IS_CONFIGURED) {
+    setSyncState('error');
+    return;
+  }
+
   const [remotePagesRes, remoteCatsRes] = await Promise.allSettled([
     loadPagesRemote(),
     loadCatsRemote()
