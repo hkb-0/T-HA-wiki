@@ -607,7 +607,7 @@ async function gasCall(action, payload = {}) {
     return null;
   }
 
-  if (action === 'saveAllPages' || action === 'saveCats') {
+  if (action === 'savePage' || action === 'deletePage' || action === 'saveCats') {
     return gasPost(action, payload);
   }
 
@@ -667,25 +667,20 @@ function gasPost(action, payload = {}) {
     });
 }
 
-// debounce: 連続した書き込みをまとめて遅延実行
-let syncTimer = null;
-function schedulSync() {
+async function syncRemote(action, payload) {
   if (!GAS_IS_CONFIGURED) {
     setSyncState('error');
-    return;
+    return null;
   }
-  if (syncTimer) clearTimeout(syncTimer);
-  syncTimer = setTimeout(async () => {
-    setSyncState('syncing');
-    const r1 = await gasCall('saveAllPages', { pages });
-    const r2 = await gasCall('saveCats', { cats });
-    if (r1 && r1.ok && r2 && r2.ok) {
-      clearLocalDirty();
-      setSyncState('ok');
-    } else {
-      setSyncState('error');
-    }
-  }, 5000); // 5秒後にまとめて同期
+  setSyncState('syncing');
+  const result = await gasCall(action, payload);
+  if (result && result.ok) {
+    clearLocalDirty();
+    setSyncState('ok');
+  } else {
+    setSyncState('error');
+  }
+  return result;
 }
 
 // Pages
@@ -701,13 +696,13 @@ async function loadPagesRemote() {
 async function savePageRemote(pageObj) {
   localStorage.setItem(LS_PAGES, JSON.stringify(pages));
   markLocalDirty();
-  schedulSync();
+  return syncRemote('savePage', { page: pageObj });
 }
 
 async function deletePageRemote(id) {
   localStorage.setItem(LS_PAGES, JSON.stringify(pages));
   markLocalDirty();
-  schedulSync();
+  return syncRemote('deletePage', { id });
 }
 
 // Cats
@@ -728,7 +723,7 @@ async function loadCatsRemote() {
 async function saveCatsRemote() {
   localStorage.setItem(LS_CATS, JSON.stringify(cats));
   markLocalDirty();
-  schedulSync();
+  return syncRemote('saveCats', { cats });
 }
 
 // 後方互換ラッパー（savePages/saveCats を呼んでいる箇所はそのまま動く）
@@ -736,13 +731,20 @@ function savePages(p) {
   pages = p;
   localStorage.setItem(LS_PAGES, JSON.stringify(p));
   markLocalDirty();
-  schedulSync();
+  Promise.all(pages.map(page => gasCall('savePage', { page }))).then(results => {
+    if (results.every(result => result && result.ok)) {
+      clearLocalDirty();
+      setSyncState('ok');
+    } else {
+      setSyncState('error');
+    }
+  });
 }
 function saveCats(c) {
   cats = c;
   localStorage.setItem(LS_CATS, JSON.stringify(c));
   markLocalDirty();
-  schedulSync();
+  syncRemote('saveCats', { cats });
 }
 
 /* ─── State ─── */
@@ -1044,11 +1046,15 @@ function openDeleteCatModal(id, e) {
 async function confirmDeleteCat() {
   cats = cats.filter(c => c.id !== deleteCatTarget);
   const fallback = cats[0]?.id || '';
-  pages = pages.map(p => p.category === deleteCatTarget ? {...p, category:fallback} : p);
+  const changedPages = pages
+    .filter(p => p.category === deleteCatTarget)
+    .map(p => ({ ...p, category: fallback, updatedAt: Date.now() }));
+  pages = pages.map(p => changedPages.find(changed => changed.id === p.id) || p);
   localStorage.setItem(LS_CATS, JSON.stringify(cats));
   localStorage.setItem(LS_PAGES, JSON.stringify(pages));
   markLocalDirty();
-  schedulSync();
+  await saveCatsRemote();
+  await Promise.all(changedPages.map(page => syncRemote('savePage', { page })));
   if (filterCat === deleteCatTarget) filterCat = 'all';
   closeModal('deleteCatModal'); renderSidebar();
   if (currentId) viewPage(currentId); else if (pages.length > 0) viewPage(pages[0].id); else showEmpty();
