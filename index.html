@@ -637,55 +637,22 @@ async function gasCall(action, payload = {}) {
 }
 
 function gasPost(action, payload = {}) {
-  return new Promise(resolve => {
-    const iframeName = 'gasPostFrame_' + Date.now() + '_' + (gasCallbackSeq++);
-    const iframe = document.createElement('iframe');
-    iframe.name = iframeName;
-    iframe.style.display = 'none';
-
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = GAS_URL;
-    form.target = iframeName;
-    form.style.display = 'none';
-
-    const actionInput = document.createElement('input');
-    actionInput.name = 'action';
-    actionInput.value = action;
-    form.appendChild(actionInput);
-
-    const dataInput = document.createElement('input');
-    dataInput.name = 'data';
-    dataInput.value = JSON.stringify(payload);
-    form.appendChild(dataInput);
-
-    let done = false;
-    let submitted = false;
-    function cleanup(result) {
-      if (done) return;
-      done = true;
-      clearTimeout(timer);
-      setTimeout(() => {
-        iframe.remove();
-        form.remove();
-      }, 1000);
-      resolve(result);
-    }
-
-    iframe.onload = () => {
-      if (!submitted) return;
-      cleanup({ ok: true });
-    };
-    const timer = setTimeout(() => {
-      console.warn('GAS POST may have failed or timed out:', action);
-      cleanup(null);
-    }, 30000);
-
-    document.body.appendChild(iframe);
-    document.body.appendChild(form);
-    submitted = true;
-    form.submit();
+  const body = new URLSearchParams({
+    action,
+    data: JSON.stringify(payload),
+    t: Date.now()
   });
+
+  return fetch(GAS_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    body
+  })
+    .then(() => ({ ok: true }))
+    .catch(error => {
+      console.warn('GAS POST failed:', action, error);
+      return null;
+    });
 }
 
 // debounce: 連続した書き込みをまとめて遅延実行
