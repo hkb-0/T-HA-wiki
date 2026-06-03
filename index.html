@@ -255,6 +255,10 @@ body {
   margin: 18px 0;
   border: 1px solid var(--grey1);
 }
+.body-text img.wiki-img {
+  max-height: 720px;
+  object-fit: contain;
+}
 /* Link styles */
 .body-text a.link-full {
   color: var(--black);
@@ -347,7 +351,8 @@ textarea.input-text {
 .editable-body b, .editable-body strong { font-weight: 700; }
 .editable-body mark { background: #fff3a3; padding: 0 2px; }
 .editable-body span[style*="color"] { font-weight: 500; }
-.editable-body.is-pasting-image {
+.editable-body.is-pasting-image,
+.editable-body.is-drop-target {
   border-color: var(--black);
   background: rgba(10,10,10,0.025);
 }
@@ -607,7 +612,7 @@ async function gasCall(action, payload = {}) {
     return null;
   }
 
-  if (action === 'savePage' || action === 'deletePage' || action === 'saveCats') {
+  if (action === 'savePage' || action === 'deletePage' || action === 'saveCats' || action === 'uploadImage') {
     return gasPost(action, payload);
   }
 
@@ -846,6 +851,9 @@ function viewPage(id) {
 /* ─── Link rendering ─── */
 function renderBody(text) {
   let out = text;
+  out = out.replace(/\[img\]\((https?:\/\/[^\s)]+)\)/g, (_, url) => {
+    return `<img class="wiki-img" src="${url}" alt="本文画像" loading="lazy">`;
+  });
   out = out.replace(/\[icon\]\((https?:\/\/[^\s)]+)\)/g, (_, url) => {
     const domain = getDomain(url);
     return `<a class="link-icon" href="${url}" target="_blank" rel="noopener" title="${url}"><img src="https://www.google.com/s2/favicons?domain=${domain}&sz=16" width="14" height="14" onerror="this.style.display='none';this.parentNode.innerHTML='🔗';" style="image-rendering:auto"></a>`;
@@ -889,11 +897,12 @@ function showEditor(id) {
           <button type="button" onmousedown="event.preventDefault();formatText('bold')"><b>B</b></button>
           <button type="button" onclick="formatText('hiliteColor','#fff3a3')">Marker</button>
           <button type="button" onclick="formatText('foreColor','#d94848')">Red</button>
+          <button type="button" onclick="insertImageUrl()">Image</button>
           <button type="button" onclick="formatText('removeFormat')">Clear</button>
         </div>
         <div class="editable-body" id="eBody" contenteditable="true" placeholder="テキストを入力...">${p.body||''}</div>
         <div class="link-opts-hint">
-          リンクの表示形式：通常URL → フルリンク ｜ <code>[ラベル](URL)</code> → ショートリンク ｜ <code>[icon](URL)</code> → アイコン
+          リンクの表示形式：通常URL → フルリンク ｜ <code>[ラベル](URL)</code> → ショートリンク ｜ <code>[icon](URL)</code> → アイコン ｜ <code>[img](URL)</code> → 画像
         </div>
       </div>
     </div>`;
@@ -910,6 +919,17 @@ function formatText(command, value = null) {
   document.getElementById('eBody').focus();
 }
 
+function insertImageUrl() {
+  const url = prompt('画像URLを入力してください');
+  if (!url) return;
+  const trimmed = url.trim();
+  if (!/^https?:\/\/\S+$/i.test(trimmed)) {
+    alert('http または https で始まる画像URLを入力してください。');
+    return;
+  }
+  insertHtmlAtCursor(`[img](${trimmed})`);
+}
+
 function setupImagePaste() {
   const editor = document.getElementById('eBody');
   if (!editor) return;
@@ -921,20 +941,83 @@ function setupImagePaste() {
 
     event.preventDefault();
     const file = imageItem.getAsFile();
-    if (!file) return;
+    await insertImageFile(file, '貼り付け画像');
+  });
 
-    editor.classList.add('is-pasting-image');
-    try {
-      const dataUrl = await imageFileToDataUrl(file);
-      insertHtmlAtCursor(`<img src="${dataUrl}" alt="貼り付け画像">`);
-    } catch (error) {
-      console.warn('Image paste failed:', error);
-      alert('画像の貼り付けに失敗しました。サイズを小さくして再度お試しください。');
-    } finally {
-      editor.classList.remove('is-pasting-image');
-      editor.focus();
+  editor.addEventListener('dragover', event => {
+    if (!hasImageFile(event.dataTransfer?.files)) return;
+    event.preventDefault();
+    editor.classList.add('is-drop-target');
+  });
+
+  editor.addEventListener('dragleave', event => {
+    if (!editor.contains(event.relatedTarget)) {
+      editor.classList.remove('is-drop-target');
     }
   });
+
+  editor.addEventListener('drop', async event => {
+    const files = Array.from(event.dataTransfer?.files || []);
+    const imageFiles = files.filter(file => file.type && file.type.startsWith('image/'));
+    if (!imageFiles.length) return;
+
+    event.preventDefault();
+    editor.classList.remove('is-drop-target');
+    for (const file of imageFiles) {
+      await insertImageFile(file, file.name || 'ドロップ画像');
+    }
+  });
+}
+
+function hasImageFile(fileList) {
+  return Array.from(fileList || []).some(file => file.type && file.type.startsWith('image/'));
+}
+
+async function insertImageFile(file, altText) {
+  const editor = document.getElementById('eBody');
+  if (!editor || !file) return;
+
+  editor.classList.add('is-pasting-image');
+  try {
+    const dataUrl = await imageFileToDataUrl(file);
+    const uploaded = await uploadImageToDrive(dataUrl, file.name || altText || 'image.jpg');
+    if (uploaded && uploaded.url) {
+      insertTextAtCursor(`[img](${uploaded.url})`);
+    } else {
+      insertHtmlAtCursor(`<img src="${dataUrl}" alt="${escA(altText || '画像')}">`);
+    }
+  } catch (error) {
+    console.warn('Image insert failed:', error);
+    alert('画像の追加に失敗しました。サイズを小さくして再度お試しください。');
+  } finally {
+    editor.classList.remove('is-pasting-image');
+    editor.focus();
+  }
+}
+
+async function uploadImageToDrive(dataUrl, fileName) {
+  if (!GAS_IS_CONFIGURED) return null;
+
+  const uploadId = 'u' + Date.now() + Math.random().toString(36).slice(2);
+  const posted = await gasPost('uploadImage', {
+    uploadId,
+    fileName,
+    dataUrl
+  });
+  if (!posted || !posted.ok) return null;
+
+  for (let i = 0; i < 20; i++) {
+    await wait(1000);
+    const result = await gasCall('getUploadResult', { uploadId });
+    if (result && result.ok && result.url) return result;
+    if (result && result.ok === false && result.error) throw new Error(result.error);
+  }
+
+  throw new Error('Image upload result timed out');
+}
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function imageFileToDataUrl(file) {
@@ -985,6 +1068,10 @@ function insertHtmlAtCursor(html) {
   range.setEndAfter(node);
   selection.removeAllRanges();
   selection.addRange(range);
+}
+
+function insertTextAtCursor(text) {
+  insertHtmlAtCursor(escH(text));
 }
 
 async function savePage(id) {
