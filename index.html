@@ -997,21 +997,34 @@ async function insertImageFile(file, altText) {
   const editor = document.getElementById('eBody');
   if (!editor || !file) return;
 
+  const placeholder = document.createElement('span');
+  placeholder.textContent = '[画像アップロード中...]';
+  placeholder.style.color = '#7a7873';
+  placeholder.style.fontSize = '12px';
+  insertNodeAtCursor(placeholder);
+
   editor.classList.add('is-pasting-image');
   try {
     const dataUrl = await imageFileToDataUrl(file);
     const uploaded = await uploadImageToDrive(dataUrl, file.name || altText || 'image.jpg');
     if (uploaded && uploaded.url) {
-      insertTextAtCursor(`[img](${normalizeImageUrl(uploaded.url)})`);
+      placeholder.replaceWith(document.createTextNode(`[img](${normalizeImageUrl(uploaded.url)})`));
     } else {
-      insertHtmlAtCursor(`<img src="${dataUrl}" alt="${escA(altText || '画像')}">`);
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      img.alt = altText || '画像';
+      placeholder.replaceWith(img);
     }
   } catch (error) {
     console.warn('Image insert failed:', error);
+    placeholder.remove();
     alert('画像の追加に失敗しました。サイズを小さくして再度お試しください。');
   } finally {
-    editor.classList.remove('is-pasting-image');
-    editor.focus();
+    const currentEditor = document.getElementById('eBody');
+    if (currentEditor) {
+      currentEditor.classList.remove('is-pasting-image');
+      currentEditor.focus();
+    }
   }
 }
 
@@ -1085,6 +1098,32 @@ function insertHtmlAtCursor(html) {
   wrap.innerHTML = html;
   const node = wrap.firstChild;
   if (!node) return false;
+  range.insertNode(node);
+  range.setStartAfter(node);
+  range.setEndAfter(node);
+  selection.removeAllRanges();
+  selection.addRange(range);
+  return true;
+}
+
+function insertNodeAtCursor(node) {
+  const editor = document.getElementById('eBody');
+  if (!editor || !node) return false;
+  editor.focus();
+
+  const selection = window.getSelection();
+  if (!selection || !selection.rangeCount) {
+    editor.appendChild(node);
+    return true;
+  }
+
+  const range = selection.getRangeAt(0);
+  if (!editor.contains(range.commonAncestorContainer)) {
+    editor.appendChild(node);
+    return true;
+  }
+
+  range.deleteContents();
   range.insertNode(node);
   range.setStartAfter(node);
   range.setEndAfter(node);
