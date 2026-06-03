@@ -537,7 +537,7 @@ mark { background: none; color: var(--black); text-decoration: underline; text-d
    （「デプロイ」→「ウェブアプリとして導入」で発行される
      https://script.google.com/macros/s/xxxxxxx/exec 形式のURL）
 ═══════════════════════════════════════════════════ */
-const GAS_URL = 'https://script.google.com/macros/s/https://script.google.com/macros/s/AKfycby-oRdFrINAL1ihfjn5IxNRiP21024mOKs88iGWlPtkDzF_BZ1bxWdYXbdlzMWOH8-e/exec/exec';
+const GAS_URL = 'https://script.google.com/macros/s/YOUR_DEPLOY_ID_HERE/exec';
 /* ═══════════════════════════════════════════════════ */
 
 /* ─── パスワード認証 ─── */
@@ -571,39 +571,32 @@ function setSyncState(state) {
   dot.title = state === 'syncing' ? '同期中...' : state === 'error' ? '同期エラー（ローカル保存済み）' : '同期済み';
 }
 
-async function gasRequest(action, payload = {}) {
+async function gasCall(action, payload = {}) {
   setSyncState('syncing');
   try {
-    const res = await fetch(GAS_URL, {
-      method: 'POST',
-      mode: 'no-cors', // GASはno-corsが必要
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, ...payload })
+    const params = new URLSearchParams({
+      action,
+      data: JSON.stringify(payload),
+      t: Date.now()
     });
-    // no-cors では response.json() が使えないため GET で読み込む
-    setSyncState('ok');
-    return true;
-  } catch (e) {
-    console.warn('GAS write failed, localStorage only:', e);
-    setSyncState('error');
-    return false;
-  }
-}
-
-async function gasGet(action) {
-  setSyncState('syncing');
-  try {
-    const url = GAS_URL + '?action=' + action + '&t=' + Date.now();
-    const res = await fetch(url);
+    const res = await fetch(GAS_URL + '?' + params.toString());
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const json = await res.json();
     setSyncState('ok');
     return json;
   } catch (e) {
-    console.warn('GAS read failed, using localStorage:', e);
+    console.warn('GAS request failed, localStorage only:', e);
     setSyncState('error');
     return null;
   }
+}
+
+async function gasRequest(action, payload = {}) {
+  const r = await gasCall(action, payload);
+  return r && r.ok !== false;
+}
+async function gasGet(action) {
+  return await gasCall(action);
 }
 
 /* ─── Pages ─── */
