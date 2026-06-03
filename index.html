@@ -564,12 +564,26 @@ const GAS_IS_CONFIGURED = !GAS_URL.includes('YOUR_DEPLOY_ID_HERE');
 ═══════════════════════════════════════════════════ */
 const LS_PAGES = 'wiki_pages_v2';
 const LS_CATS  = 'wiki_cats_v2';
+const LS_DIRTY = 'wiki_has_unsynced_changes_v2';
 
 function setSyncState(state) {
   const dot = document.getElementById('syncDot');
   if (!dot) return;
   dot.className = 'sync-dot' + (state === 'syncing' ? ' syncing' : state === 'error' ? ' error' : '');
   dot.title = state === 'syncing' ? '同期中...' : state === 'error' ? '同期エラー（ローカル保存済み）' : '同期済み';
+}
+
+function markLocalDirty() {
+  localStorage.setItem(LS_DIRTY, '1');
+  setSyncState('syncing');
+}
+
+function hasLocalDirty() {
+  return localStorage.getItem(LS_DIRTY) === '1';
+}
+
+function clearLocalDirty() {
+  localStorage.removeItem(LS_DIRTY);
 }
 
 // GASへのリクエストはJSONPで行う（file:// から開いてもCORSで止まりにくい）
@@ -630,7 +644,12 @@ function schedulSync() {
     setSyncState('syncing');
     const r1 = await gasCall('saveAllPages', { pages });
     const r2 = await gasCall('saveCats', { cats });
-    setSyncState(r1 && r2 ? 'ok' : 'error');
+    if (r1 && r1.ok && r2 && r2.ok) {
+      clearLocalDirty();
+      setSyncState('ok');
+    } else {
+      setSyncState('error');
+    }
   }, 5000); // 5秒後にまとめて同期
 }
 
@@ -646,11 +665,13 @@ async function loadPagesRemote() {
 
 async function savePageRemote(pageObj) {
   localStorage.setItem(LS_PAGES, JSON.stringify(pages));
+  markLocalDirty();
   schedulSync();
 }
 
 async function deletePageRemote(id) {
   localStorage.setItem(LS_PAGES, JSON.stringify(pages));
+  markLocalDirty();
   schedulSync();
 }
 
@@ -671,6 +692,7 @@ async function loadCatsRemote() {
 
 async function saveCatsRemote() {
   localStorage.setItem(LS_CATS, JSON.stringify(cats));
+  markLocalDirty();
   schedulSync();
 }
 
@@ -678,11 +700,13 @@ async function saveCatsRemote() {
 function savePages(p) {
   pages = p;
   localStorage.setItem(LS_PAGES, JSON.stringify(p));
+  markLocalDirty();
   schedulSync();
 }
 function saveCats(c) {
   cats = c;
   localStorage.setItem(LS_CATS, JSON.stringify(c));
+  markLocalDirty();
   schedulSync();
 }
 
@@ -910,6 +934,7 @@ async function confirmDeleteCat() {
   pages = pages.map(p => p.category === deleteCatTarget ? {...p, category:fallback} : p);
   localStorage.setItem(LS_CATS, JSON.stringify(cats));
   localStorage.setItem(LS_PAGES, JSON.stringify(pages));
+  markLocalDirty();
   schedulSync();
   if (filterCat === deleteCatTarget) filterCat = 'all';
   closeModal('deleteCatModal'); renderSidebar();
@@ -1048,6 +1073,10 @@ async function init() {
 
 async function syncFromGAS() {
   if (!GAS_IS_CONFIGURED) {
+    setSyncState('error');
+    return;
+  }
+  if (hasLocalDirty()) {
     setSyncState('error');
     return;
   }
