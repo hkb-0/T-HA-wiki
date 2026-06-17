@@ -9,7 +9,7 @@
 
 :root {
   --black: #0a0a0a;
-  --white: #ffffff;
+  --white: #fafaf8;
   --grey1: #e8e6e0;
   --grey2: #b8b5ae;
   --grey3: #7a7873;
@@ -68,7 +68,7 @@ body {
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 .logo {
-  font-family: 'Noto sans JP', serif;
+  font-family: 'Cormorant Garamond', serif;
   font-weight: 400;
   font-size: 13px;
   letter-spacing: 4px;
@@ -231,7 +231,7 @@ body {
 }
 .toolbar-title {
   flex: 1;
-  font-family: 'Noto sans JP', serif;
+  font-family: 'Cormorant Garamond', serif;
   font-weight: 400; font-size: 15px;
   letter-spacing: 2px; text-transform: uppercase;
   color: var(--grey3);
@@ -251,6 +251,10 @@ body {
 .tbtn:hover { border-color: var(--black); color: var(--black); }
 .tbtn-fill { background: var(--black); border-color: var(--black); color: var(--white); }
 .tbtn-fill:hover { opacity: 0.8; color: var(--white); }
+.tbtn:disabled {
+  opacity: 0.45;
+  cursor: wait;
+}
 .tbtn-del { color: #999; }
 .tbtn-del:hover { border-color: #999; color: #555; background: #f5f3f0; }
 
@@ -259,8 +263,8 @@ body {
 @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 
 .page-title-view {
-  font-family: 'Noto sans JP', serif;
-  font-weight: 400; font-size: 42px;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 300; font-size: 42px;
   letter-spacing: -0.5px; line-height: 1.15;
   color: var(--black); margin-bottom: 22px;
 }
@@ -272,7 +276,7 @@ body {
 .meta-item { font-size: 11px; letter-spacing: 0.8px; color: var(--grey2); text-transform: uppercase; display: flex; align-items: center; gap: 5px; }
 .divider { border: none; border-top: 1px solid var(--grey1); margin-bottom: 36px; }
 .body-text {
-  font-family: 'Noto sans JP', serif;
+  font-family: 'Noto Serif JP', serif;
   font-weight: 400; font-size: 15px;
   line-height: 2; color: var(--grey4);
   white-space: pre-wrap; word-break: break-word;
@@ -285,9 +289,47 @@ body {
   margin: 18px 0;
   border: 1px solid var(--grey1);
 }
-.body-text img.wiki-img {
+.body-text img {
   max-height: 720px;
   object-fit: contain;
+  cursor: zoom-in;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.body-text img:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.image-lightbox {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 800;
+  background: rgba(10,10,10,0.88);
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  cursor: zoom-out;
+}
+.image-lightbox.open { display: flex; }
+.image-lightbox img {
+  max-width: min(100%, 1400px);
+  max-height: 92vh;
+  object-fit: contain;
+  background: #fff;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.35);
+}
+.image-lightbox-close {
+  position: fixed;
+  right: 18px;
+  top: 18px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(10,10,10,0.2);
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
 }
 /* Link styles */
 .body-text a.link-full {
@@ -411,7 +453,7 @@ textarea.input-text {
   padding: 80px; text-align: center;
 }
 .empty-heading {
-  font-family: 'Noto sans JP', serif;
+  font-family: 'Cormorant Garamond', serif;
   font-weight: 300; font-size: 32px;
   letter-spacing: 3px; text-transform: uppercase;
   color: var(--grey1); margin-bottom: 10px;
@@ -442,7 +484,7 @@ mark { background: none; color: var(--black); text-decoration: underline; text-d
   box-shadow: 0 20px 60px rgba(0,0,0,0.15);
   animation: fadeUp 0.2s ease;
 }
-.modal-title { font-family: 'Noto sans JP', serif; font-weight: 300; font-size: 22px; letter-spacing: 1px; margin-bottom: 10px; }
+.modal-title { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 22px; letter-spacing: 1px; margin-bottom: 10px; }
 .modal-sub { font-size: 12px; color: var(--grey3); margin-bottom: 24px; letter-spacing: 0.3px; line-height: 1.6; }
 .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
 
@@ -462,7 +504,7 @@ mark { background: none; color: var(--black); text-decoration: underline; text-d
 }
 #loadingOverlay.hide { opacity: 0; pointer-events: none; }
 .loading-logo {
-  font-family: 'Noto sans JP', serif;
+  font-family: 'Cormorant Garamond', serif;
   font-weight: 300; font-size: 18px;
   letter-spacing: 6px; text-transform: uppercase;
   color: rgba(255,255,255,0.7);
@@ -539,6 +581,11 @@ mark { background: none; color: var(--black); text-decoration: underline; text-d
   <div class="loading-logo"><img class="loading-logo-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 760 155'%3E%3Ctext x='0' y='126' font-family='Arial Black,Arial,sans-serif' font-size='150' font-weight='900' fill='black'%3ET%2BHA%3C/text%3E%3C/svg%3E" alt="T+HA"></div>
   <div class="loading-spinner"></div>
   <div class="loading-msg" id="loadingMsg">Loading...</div>
+</div>
+
+<div class="image-lightbox" id="imageLightbox" onclick="closeImageLightbox()">
+  <button class="image-lightbox-close" type="button" onclick="closeImageLightbox()">×</button>
+  <img id="imageLightboxImg" src="" alt="拡大画像" onclick="event.stopPropagation()">
 </div>
 
 <div class="app">
@@ -832,6 +879,7 @@ function saveCats(c) {
 let pages = [], cats = [];
 let currentId = null, filterCat = 'all', deleteTarget = null, deleteCatTarget = null, selColor = '#3b9eff';
 let isEditing = false;
+let isSaving = false;
 
 const SWATCHES = [
   '#3b9eff','#2ecc71','#f39c12','#e74c3c',
@@ -958,11 +1006,27 @@ function normalizeImageUrl(url) {
     }
 
     if (id) {
-      return 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w1600';
+      return 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w2400';
     }
   } catch (error) {}
 
   return url;
+}
+
+function openImageLightbox(url) {
+  const box = document.getElementById('imageLightbox');
+  const img = document.getElementById('imageLightboxImg');
+  if (!box || !img) return;
+  img.src = url;
+  box.classList.add('open');
+}
+
+function closeImageLightbox() {
+  const box = document.getElementById('imageLightbox');
+  const img = document.getElementById('imageLightboxImg');
+  if (!box || !img) return;
+  box.classList.remove('open');
+  img.src = '';
 }
 
 /* ─── Editor ─── */
@@ -982,7 +1046,7 @@ function showEditor(id) {
     <div class="toolbar">
       <span class="toolbar-title">${isNew?'New Page':'Editing'}</span>
       <button class="tbtn" onclick="${isNew?'cancelNew()':`viewPage('${id}')`}">Cancel</button>
-      <button class="tbtn tbtn-fill" onclick="savePage(${isNew?'null':`'${id}'`})">Save</button>
+      <button class="tbtn tbtn-fill" id="savePageBtn" onclick="savePage(${isNew?'null':`'${id}'`})">Save</button>
     </div>
     <div class="editor-wrap">
       <div class="field">
@@ -1140,14 +1204,14 @@ function imageFileToDataUrl(file) {
     reader.onload = () => {
       const image = new Image();
       image.onload = () => {
-        const maxSize = 1400;
+        const maxSize = 2200;
         const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
         const canvas = document.createElement('canvas');
         canvas.width = Math.max(1, Math.round(image.width * scale));
         canvas.height = Math.max(1, Math.round(image.height * scale));
         const ctx = canvas.getContext('2d');
         ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.78));
+        resolve(canvas.toDataURL('image/jpeg', 0.9));
       };
       image.onerror = reject;
       image.src = reader.result;
@@ -1241,31 +1305,51 @@ function insertTextAtCursor(text) {
 }
 
 async function savePage(id) {
+  if (isSaving) return;
+
   const title    = document.getElementById('eTitle').value.trim();
   const body     = document.getElementById('eBody').innerHTML;
   const catEl    = document.querySelector('input[name="pc"]:checked');
   const category = catEl ? catEl.value : (cats[0]?.id||'');
   if (!title) { alert('タイトルを入力してください'); return; }
 
-  let pageObj;
-  if (id === null) {
-    pageObj = { id:'p'+Date.now(), title, body, category, createdAt:Date.now(), updatedAt:Date.now() };
-    pages.unshift(pageObj);
-    currentId = pageObj.id;
-  } else {
-    const i = pages.findIndex(p => p.id === id);
-    if (i >= 0) {
+  const saveBtn = document.getElementById('savePageBtn');
+  isSaving = true;
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving';
+  }
+
+  try {
+    let pageObj;
+    if (id === null) {
+      pageObj = { id:'p'+Date.now(), title, body, category, createdAt:Date.now(), updatedAt:Date.now() };
+      pages.unshift(pageObj);
+      currentId = pageObj.id;
+    } else {
+      const i = pages.findIndex(p => p.id === id);
+      if (i < 0) throw new Error('Page not found');
       pages[i] = { ...pages[i], title, body, category, updatedAt:Date.now() };
       pageObj = pages[i];
       currentId = id;
     }
+
+    // ローカル即時保存 → GAS非同期同期
+    localStorage.setItem(LS_PAGES, JSON.stringify(pages));
+    await savePageRemote(pageObj);
+    renderSidebar();
+    isEditing = false;
+    viewPage(currentId);
+  } catch (error) {
+    console.warn('Save failed:', error);
+    alert('保存に失敗しました。もう一度お試しください。');
+  } finally {
+    isSaving = false;
+    if (saveBtn && document.body.contains(saveBtn)) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save';
+    }
   }
-  // ローカル即時保存 → GAS非同期同期
-  localStorage.setItem(LS_PAGES, JSON.stringify(pages));
-  await savePageRemote(pageObj);
-  renderSidebar();
-  isEditing = false;
-  viewPage(currentId);
 }
 
 function cancelNew() {
@@ -1445,6 +1529,15 @@ async function init() {
 
   document.querySelectorAll('.overlay').forEach(el => {
     el.addEventListener('click', e => { if (e.target===el) el.classList.remove('open'); });
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeImageLightbox();
+  });
+  document.addEventListener('click', e => {
+    const img = e.target.closest?.('.body-text img');
+    if (!img) return;
+    e.preventDefault();
+    openImageLightbox(img.currentSrc || img.src);
   });
 
   // バックグラウンドでGASから最新データを取得して差分があれば更新
