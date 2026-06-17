@@ -903,6 +903,25 @@ function dropCat(e) {
   renderSidebar();
 }
 
+function getPageCategories(page) {
+  if (!page) return [];
+  if (Array.isArray(page.categories)) return page.categories.filter(Boolean).slice(0, 3);
+  if (typeof page.category === 'string' && page.category.includes('|')) {
+    return page.category.split('|').filter(Boolean).slice(0, 3);
+  }
+  return page.category ? [page.category] : [];
+}
+
+function pageHasCategory(page, catId) {
+  return getPageCategories(page).includes(catId);
+}
+
+function getPageCategoryLabels(page) {
+  return getPageCategories(page)
+    .map(id => cats.find(c => c.id === id))
+    .filter(Boolean);
+}
+
 /* ─── Sidebar render ─── */
 function renderSidebar() {
   const catList = document.getElementById('catList');
@@ -913,7 +932,7 @@ function renderSidebar() {
     </button>
   </li>`;
   cats.forEach(c => {
-    const n = pages.filter(p => p.category === c.id).length;
+    const n = pages.filter(p => pageHasCategory(p, c.id)).length;
     html += `<li class="cat-item"
       draggable="true" data-id="${c.id}"
       ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="dropCat(event)"
@@ -931,7 +950,7 @@ function renderSidebar() {
   });
   catList.innerHTML = html;
 
-  const filtered = (filterCat === 'all' ? pages : pages.filter(p => p.category === filterCat))
+  const filtered = (filterCat === 'all' ? pages : pages.filter(p => pageHasCategory(p, filterCat)))
     .sort((a, b) => b.updatedAt - a.updatedAt);
   const pl = document.getElementById('pageList');
   if (!filtered.length) {
@@ -939,10 +958,11 @@ function renderSidebar() {
     return;
   }
   pl.innerHTML = filtered.map(p => {
-    const cat = cats.find(c => c.id === p.category);
+    const pageCats = getPageCategoryLabels(p);
+    const catText = pageCats.map(c => c.name).join(', ');
     return `<li><button class="page-btn${p.id===currentId?' active':''}" onclick="viewPage('${p.id}')">
       <span class="page-btn-title">${p.title||'Untitled'}</span>
-      <span class="page-btn-sub">${cat?cat.name+' · ':''}${fmtDate(p.updatedAt)}</span>
+      <span class="page-btn-sub">${catText?catText+' · ':''}${fmtDate(p.updatedAt)}</span>
     </button></li>`;
   }).join('');
 }
@@ -953,7 +973,7 @@ function viewPage(id) {
   closeSidebar();
   const p = pages.find(x => x.id === id); if (!p) return;
   currentId = id; renderSidebar();
-  const cat = cats.find(c => c.id === p.category);
+  const pageCats = getPageCategoryLabels(p);
   document.getElementById('main').innerHTML = `
     <div class="toolbar">
       <span class="toolbar-title">${p.title||'Untitled'}</span>
@@ -966,7 +986,7 @@ function viewPage(id) {
     <div class="content">
       <h1 class="page-title-view">${p.title||'Untitled'}</h1>
       <div class="meta-row">
-        ${cat?`<span class="tag" style="border-color:${cat.color};color:${cat.color}">${cat.name}</span>`:''}
+        ${pageCats.map(cat => `<span class="tag" style="border-color:${cat.color};color:${cat.color}">${cat.name}</span>`).join('')}
         <span class="meta-item">Updated ${fmtFull(p.updatedAt)}</span>
         <span class="meta-item">Created ${fmtFull(p.createdAt)}</span>
       </div>
@@ -1037,9 +1057,10 @@ function showEditor(id) {
   const p = isNew ? { title:'', body:'', category: cats[0]?.id||'' } : pages.find(x => x.id === id);
   if (!p) return;
   currentId = id; renderSidebar();
+  const selectedCats = getPageCategories(p);
   const catOpts = cats.map(c => `
-    <label class="cat-opt${p.category===c.id?' sel':''}" onclick="selCat(this,'${c.id}')">
-      <input type="radio" name="pc" value="${c.id}" ${p.category===c.id?'checked':''}>
+    <label class="cat-opt${selectedCats.includes(c.id)?' sel':''}" onclick="togglePageCat(this,event)">
+      <input type="checkbox" name="pc" value="${c.id}" ${selectedCats.includes(c.id)?'checked':''}>
       <span class="cat-dot" style="background:${c.color}"></span>${c.name}
     </label>`).join('');
   document.getElementById('main').innerHTML = `
@@ -1075,9 +1096,19 @@ function showEditor(id) {
   document.getElementById('eTitle').focus();
 }
 
-function selCat(el, id) {
-  document.querySelectorAll('.cat-opt').forEach(o => o.classList.remove('sel'));
-  el.classList.add('sel'); el.querySelector('input').checked = true;
+function togglePageCat(el, event) {
+  event.preventDefault();
+  const input = el.querySelector('input');
+  if (!input) return;
+
+  const checked = document.querySelectorAll('input[name="pc"]:checked');
+  if (!input.checked && checked.length >= 3) {
+    alert('カテゴリは3つまで選択できます。');
+    return;
+  }
+
+  input.checked = !input.checked;
+  el.classList.toggle('sel', input.checked);
 }
 function formatText(command, value = null) {
   document.execCommand(command, false, value);
@@ -1309,8 +1340,11 @@ async function savePage(id) {
 
   const title    = document.getElementById('eTitle').value.trim();
   const body     = document.getElementById('eBody').innerHTML;
-  const catEl    = document.querySelector('input[name="pc"]:checked');
-  const category = catEl ? catEl.value : (cats[0]?.id||'');
+  const selectedCategories = Array.from(document.querySelectorAll('input[name="pc"]:checked'))
+    .map(input => input.value)
+    .slice(0, 3);
+  if (!selectedCategories.length && cats[0]) selectedCategories.push(cats[0].id);
+  const category = selectedCategories.join('|');
   if (!title) { alert('タイトルを入力してください'); return; }
 
   const saveBtn = document.getElementById('savePageBtn');
@@ -1323,13 +1357,13 @@ async function savePage(id) {
   try {
     let pageObj;
     if (id === null) {
-      pageObj = { id:'p'+Date.now(), title, body, category, createdAt:Date.now(), updatedAt:Date.now() };
+      pageObj = { id:'p'+Date.now(), title, body, category, categories:selectedCategories, createdAt:Date.now(), updatedAt:Date.now() };
       pages.unshift(pageObj);
       currentId = pageObj.id;
     } else {
       const i = pages.findIndex(p => p.id === id);
       if (i < 0) throw new Error('Page not found');
-      pages[i] = { ...pages[i], title, body, category, updatedAt:Date.now() };
+      pages[i] = { ...pages[i], title, body, category, categories:selectedCategories, updatedAt:Date.now() };
       pageObj = pages[i];
       currentId = id;
     }
@@ -1377,17 +1411,21 @@ function openDeleteCatModal(id, e) {
   e.stopPropagation();
   deleteCatTarget = id;
   const cat = cats.find(c => c.id === id);
-  const n = pages.filter(p => p.category === id).length;
+  const n = pages.filter(p => pageHasCategory(p, id)).length;
   document.getElementById('deleteCatMsg').textContent =
-    `「${cat?.name}」を削除しますか？${n>0?`このカテゴリのページ${n}件は最初のカテゴリに移動します。`:''}この操作は取り消せません。`;
+    `「${cat?.name}」を削除しますか？${n>0?`このカテゴリを含むページ${n}件からカテゴリを外します。`:''}この操作は取り消せません。`;
   document.getElementById('deleteCatModal').classList.add('open');
 }
 async function confirmDeleteCat() {
   cats = cats.filter(c => c.id !== deleteCatTarget);
   const fallback = cats[0]?.id || '';
   const changedPages = pages
-    .filter(p => p.category === deleteCatTarget)
-    .map(p => ({ ...p, category: fallback, updatedAt: Date.now() }));
+    .filter(p => pageHasCategory(p, deleteCatTarget))
+    .map(p => {
+      let categories = getPageCategories(p).filter(id => id !== deleteCatTarget);
+      if (!categories.length && fallback) categories = [fallback];
+      return { ...p, category: categories.join('|'), categories, updatedAt: Date.now() };
+    });
   pages = pages.map(p => changedPages.find(changed => changed.id === p.id) || p);
   localStorage.setItem(LS_CATS, JSON.stringify(cats));
   localStorage.setItem(LS_PAGES, JSON.stringify(pages));
@@ -1405,7 +1443,7 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 function filterBy(cat) {
   closeSidebar();
   filterCat = cat; renderSidebar();
-  const list = (cat==='all'?pages:pages.filter(p=>p.category===cat)).sort((a,b)=>b.updatedAt-a.updatedAt);
+  const list = (cat==='all'?pages:pages.filter(p=>pageHasCategory(p, cat))).sort((a,b)=>b.updatedAt-a.updatedAt);
   if (list.length) viewPage(list[0].id); else showEmpty();
 }
 
@@ -1421,12 +1459,13 @@ function handleSearch(q) {
       <div class="search-heading">${res.length} result${res.length!==1?'s':''}</div>
       ${res.length===0 ? '<p style="font-size:12px;color:var(--grey2);letter-spacing:1px">No pages found.</p>' :
         res.map((p,i) => {
-          const cat = cats.find(c=>c.id===p.category);
+          const pageCats = getPageCategoryLabels(p);
+          const catText = pageCats.map(c => c.name).join(', ');
           const ex = excerpt(p.body||'', ql);
           return `<div class="result-item${i===res.length-1?' result-last':''}" onclick="viewPage('${p.id}');document.getElementById('globalSearch').value=''">
             <div class="result-title">${hl(p.title,q)}</div>
             ${ex?`<div class="result-excerpt">${hl(ex,q)}</div>`:''}
-            <div class="result-meta">${cat?cat.name+' · ':''}${fmtFull(p.updatedAt)}</div>
+            <div class="result-meta">${catText?catText+' · ':''}${fmtFull(p.updatedAt)}</div>
           </div>`;
         }).join('')}
     </div>`;
