@@ -122,6 +122,24 @@ body {
   padding: 0 24px;
   margin-bottom: 6px;
 }
+.section-toggle {
+  display: none;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0 24px 8px;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--grey3);
+  cursor: pointer;
+  text-align: left;
+}
+.section-toggle span {
+  float: right;
+}
 .cat-list { list-style: none; }
 .cat-item { position: relative; cursor: grab; }
 .cat-item:active { cursor: grabbing; }
@@ -617,6 +635,12 @@ body {
   border-color: var(--black);
   color: var(--black);
 }
+.section-toggle {
+  color: var(--grey3);
+}
+.section-toggle:hover {
+  color: var(--black);
+}
 .page-scroll::-webkit-scrollbar-thumb { background: var(--grey1); }
 .page-btn:hover { background: #f3f2ef; }
 .page-btn.active {
@@ -668,6 +692,24 @@ body {
   .cat-select-row { gap: 6px; }
   .cat-opt { padding: 6px 10px; }
   .editable-body { min-height: 300px; }
+  .sidebar-section {
+    padding-top: 12px;
+    max-height: 48vh;
+    overflow-y: auto;
+  }
+  .sidebar-section.is-collapsed {
+    max-height: none;
+    overflow: visible;
+    padding-bottom: 8px;
+  }
+  .section-label { display: none; }
+  .section-toggle {
+    display: block;
+  }
+  .sidebar-section.is-collapsed .cat-list,
+  .sidebar-section.is-collapsed .add-cat-btn {
+    display: none;
+  }
 }
 </style>
 </head>
@@ -701,7 +743,8 @@ body {
       </div>
     </div>
 
-    <div class="sidebar-section">
+    <div class="sidebar-section is-collapsed" id="categorySection">
+      <button class="section-toggle" type="button" onclick="toggleCategorySection()">Category <span id="categoryToggleMark">+</span></button>
       <div class="section-label">Category</div>
       <ul class="cat-list" id="catList"></ul>
       <button class="add-cat-btn" onclick="openNewCatModal()">+ Add Category</button>
@@ -776,7 +819,7 @@ body {
 ═══════════════════════════════════════════════════ */
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbyu0gu9yrhHtUF4OAmwfkKHtDsA3_rVfXjc5QzWcFSIbgKpM4pkN6lMdQfc1Ma8PuOa5w/exec';
 const GAS_IS_CONFIGURED = !GAS_URL.includes('YOUR_DEPLOY_ID_HERE');
-const GAS_TOKEN = 'tha-wiki-2026-kubo-secure';
+const GAS_TOKEN = 'CHANGE_ME_TO_A_LONG_RANDOM_TOKEN';
 /* ═══════════════════════════════════════════════════ */
 
 /* ─── パスワード認証 ─── */
@@ -1585,6 +1628,7 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 /* ─── Filter ─── */
 function filterBy(cat) {
   closeSidebar();
+  collapseCategorySectionOnMobile();
   filterCat = cat; renderSidebar();
   const list = (cat==='all'?pages:pages.filter(p=>pageHasCategory(p, cat))).sort((a,b)=>b.createdAt-a.createdAt);
   if (list.length) viewPage(list[0].id); else showEmpty();
@@ -1629,6 +1673,23 @@ function toggleSidebar() {
 
 function closeSidebar() {
   document.body.classList.remove('sidebar-open');
+}
+
+function toggleCategorySection() {
+  const section = document.getElementById('categorySection');
+  const mark = document.getElementById('categoryToggleMark');
+  if (!section) return;
+  section.classList.toggle('is-collapsed');
+  if (mark) mark.textContent = section.classList.contains('is-collapsed') ? '+' : '-';
+}
+
+function collapseCategorySectionOnMobile() {
+  if (!window.matchMedia('(max-width: 820px)').matches) return;
+  const section = document.getElementById('categorySection');
+  const mark = document.getElementById('categoryToggleMark');
+  if (!section) return;
+  section.classList.add('is-collapsed');
+  if (mark) mark.textContent = '+';
 }
 
 /* ─── New / Edit category modal ─── */
