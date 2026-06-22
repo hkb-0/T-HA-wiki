@@ -15,12 +15,14 @@
   --grey3: #7a7873;
   --grey4: #3a3835;
   --sidebar-w: 290px;
+  --font-heading: 'Futura PT', 'Futura', 'Avenir Next', 'Noto Sans JP', sans-serif;
+  --font-body: '新ゴ M', 'Shin Go Medium', 'A-OTF Shin Go Pro', 'A-OTF 新ゴ Pro', 'Noto Sans JP', sans-serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: 'Noto Sans JP', sans-serif;
+  font-family: var(--font-body);
   font-weight: 300;
   background: var(--white);
   color: var(--black);
@@ -541,6 +543,94 @@ mark { background: none; color: var(--black); text-decoration: underline; text-d
 .sync-dot.error   { background: #e74c3c; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
+/* Typography */
+.logo,
+.toolbar-title,
+.page-title-view,
+.input-title,
+.empty-heading,
+.search-heading,
+.result-title,
+.modal-title,
+.loading-logo {
+  font-family: var(--font-heading);
+}
+.search-wrap input,
+.cat-btn,
+.add-cat-btn,
+.new-btn,
+.tbtn,
+.body-text,
+.body-text a.link-short,
+.input-text,
+textarea.input-text,
+.editable-body,
+.cat-opt,
+body {
+  font-family: var(--font-body);
+}
+
+/* White sidebar */
+.sidebar {
+  background: #fff;
+  color: var(--black);
+  border-right: 1px solid var(--grey1);
+}
+.sidebar-top,
+.sidebar-section,
+.sidebar-bottom {
+  border-color: var(--grey1);
+}
+.logo { color: var(--black); }
+.logo-img { filter: none; }
+.logo-sub,
+.section-label,
+.page-section-label {
+  color: var(--grey3);
+}
+.search-wrap input {
+  background: #fff;
+  border-color: var(--grey1);
+  color: var(--black);
+}
+.search-wrap input::placeholder { color: var(--grey2); }
+.search-wrap input:focus { border-color: var(--black); }
+.search-wrap svg { color: var(--grey3); }
+.cat-btn { color: var(--grey4); }
+.cat-btn:hover {
+  color: var(--black);
+  background: #f3f2ef;
+}
+.cat-btn.active {
+  color: var(--black);
+  border-left-color: var(--black);
+  background: #eeeeea;
+}
+.cat-count { color: var(--grey2); font-family: var(--font-heading); }
+.cat-del-btn { color: transparent; }
+.cat-item:hover .cat-del-btn { color: var(--grey2); }
+.add-cat-btn {
+  border-color: var(--grey1);
+  color: var(--grey3);
+}
+.add-cat-btn:hover {
+  border-color: var(--black);
+  color: var(--black);
+}
+.page-scroll::-webkit-scrollbar-thumb { background: var(--grey1); }
+.page-btn:hover { background: #f3f2ef; }
+.page-btn.active {
+  background: #eeeeea;
+  border-left-color: var(--black);
+}
+.page-btn-title { color: var(--grey4); }
+.page-btn.active .page-btn-title { color: var(--black); }
+.page-btn-sub { color: var(--grey3); }
+.new-btn {
+  background: var(--black);
+  color: #fff;
+}
+
 @media (max-width: 820px) {
   .sidebar-toggle { display: flex; align-items: center; justify-content: center; }
   .sidebar {
@@ -961,7 +1051,7 @@ function renderSidebar() {
   catList.innerHTML = html;
 
   const filtered = (filterCat === 'all' ? pages : pages.filter(p => pageHasCategory(p, filterCat)))
-    .sort((a, b) => b.updatedAt - a.updatedAt);
+    .sort((a, b) => b.createdAt - a.createdAt);
   const pl = document.getElementById('pageList');
   if (!filtered.length) {
     pl.innerHTML = `<li style="padding:10px 24px;font-size:11px;color:rgba(255,255,255,0.3)">No pages yet</li>`;
@@ -972,7 +1062,7 @@ function renderSidebar() {
     const catText = pageCats.map(c => c.name).join(', ');
     return `<li><button class="page-btn${p.id===currentId?' active':''}" onclick="viewPage('${p.id}')">
       <span class="page-btn-title">${p.title||'Untitled'}</span>
-      <span class="page-btn-sub">${catText?catText+' · ':''}${fmtDate(p.updatedAt)}</span>
+      <span class="page-btn-sub">${catText?catText+' · ':''}${p.author?escH(p.author)+' · ':''}${fmtDate(p.createdAt)}</span>
     </button></li>`;
   }).join('');
 }
@@ -998,6 +1088,7 @@ function viewPage(id) {
       <h1 class="page-title-view">${p.title||'Untitled'}</h1>
       <div class="meta-row">
         ${pageCats.map(cat => `<span class="tag" style="border-color:${cat.color};color:${cat.color}">${cat.name}</span>`).join('')}
+        ${p.author?`<span class="meta-item">By ${escH(p.author)}</span>`:''}
         <span class="meta-item">Updated ${fmtFull(p.updatedAt)}</span>
         <span class="meta-item">Created ${fmtFull(p.createdAt)}</span>
       </div>
@@ -1119,6 +1210,10 @@ function showEditor(id) {
     <div class="editor-wrap">
       <div class="field">
         <input class="input-title" id="eTitle" type="text" placeholder="Title" value="${escA(p.title||'')}">
+      </div>
+      <div class="field">
+        <label class="field-label">Author</label>
+        <input class="input-text" id="eAuthor" type="text" placeholder="作成者名" value="${escA(p.author||'')}">
       </div>
       <div class="field">
         <label class="field-label">Category</label>
@@ -1386,6 +1481,7 @@ async function savePage(id) {
   if (isSaving) return;
 
   const title    = document.getElementById('eTitle').value.trim();
+  const author   = document.getElementById('eAuthor').value.trim();
   const body     = document.getElementById('eBody').innerHTML;
   const selectedCategories = Array.from(document.querySelectorAll('input[name="pc"]:checked'))
     .map(input => input.value)
@@ -1404,13 +1500,13 @@ async function savePage(id) {
   try {
     let pageObj;
     if (id === null) {
-      pageObj = { id:'p'+Date.now(), title, body, category, categories:selectedCategories, createdAt:Date.now(), updatedAt:Date.now() };
+      pageObj = { id:'p'+Date.now(), title, author, body, category, categories:selectedCategories, createdAt:Date.now(), updatedAt:Date.now() };
       pages.unshift(pageObj);
       currentId = pageObj.id;
     } else {
       const i = pages.findIndex(p => p.id === id);
       if (i < 0) throw new Error('Page not found');
-      pages[i] = { ...pages[i], title, body, category, categories:selectedCategories, updatedAt:Date.now() };
+      pages[i] = { ...pages[i], title, author, body, category, categories:selectedCategories, updatedAt:Date.now() };
       pageObj = pages[i];
       currentId = id;
     }
@@ -1490,7 +1586,7 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 function filterBy(cat) {
   closeSidebar();
   filterCat = cat; renderSidebar();
-  const list = (cat==='all'?pages:pages.filter(p=>pageHasCategory(p, cat))).sort((a,b)=>b.updatedAt-a.updatedAt);
+  const list = (cat==='all'?pages:pages.filter(p=>pageHasCategory(p, cat))).sort((a,b)=>b.createdAt-a.createdAt);
   if (list.length) viewPage(list[0].id); else showEmpty();
 }
 
@@ -1512,7 +1608,7 @@ function handleSearch(q) {
           return `<div class="result-item${i===res.length-1?' result-last':''}" onclick="viewPage('${p.id}');document.getElementById('globalSearch').value=''">
             <div class="result-title">${hl(p.title,q)}</div>
             ${ex?`<div class="result-excerpt">${hl(ex,q)}</div>`:''}
-            <div class="result-meta">${catText?catText+' · ':''}${fmtFull(p.updatedAt)}</div>
+            <div class="result-meta">${catText?catText+' · ':''}${p.author?escH(p.author)+' · ':''}${fmtFull(p.createdAt)}</div>
           </div>`;
         }).join('')}
     </div>`;
