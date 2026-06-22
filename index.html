@@ -931,7 +931,7 @@ function gasPost(action, payload = {}) {
     mode: 'no-cors',
     body
   })
-    .then(() => ({ ok: true }))
+    .then(() => ({ ok: true, uncertain: true }))
     .catch(error => {
       console.warn('GAS POST failed:', action, error);
       return null;
@@ -946,8 +946,12 @@ async function syncRemote(action, payload) {
   setSyncState('syncing');
   const result = await gasCall(action, payload);
   if (result && result.ok) {
-    clearLocalDirty();
-    setSyncState('ok');
+    if (result.uncertain) {
+      setSyncState('syncing');
+    } else {
+      clearLocalDirty();
+      setSyncState('ok');
+    }
   } else {
     setSyncState('error');
   }
@@ -955,13 +959,46 @@ async function syncRemote(action, payload) {
 }
 
 // Pages
-async function loadPagesRemote() {
+async function loadPagesRemote(options = {}) {
+  const fallbackLocal = options.fallbackLocal !== false;
   const data = await gasCall('getPages');
   if (data && Array.isArray(data.pages)) {
-    localStorage.setItem(LS_PAGES, JSON.stringify(data.pages));
-    return data.pages;
+    const localPages = (() => {
+      try { return JSON.parse(localStorage.getItem(LS_PAGES) || '[]'); } catch { return []; }
+    })();
+    if (data.pages.length === 0 && (pages.length > 0 || localPages.length > 0)) {
+      return fallbackLocal ? localPages : null;
+    }
+    const protectedPages = protectLocalPageBodies(data.pages, localPages);
+    localStorage.setItem(LS_PAGES, JSON.stringify(protectedPages));
+    return protectedPages;
   }
+  if (!fallbackLocal) return null;
   try { return JSON.parse(localStorage.getItem(LS_PAGES) || '[]'); } catch { return []; }
+}
+
+function protectLocalPageBodies(remotePages, localPages) {
+  if (!Array.isArray(remotePages) || !Array.isArray(localPages) || !localPages.length) return remotePages;
+
+  const localById = new Map(localPages.map(page => [page.id, page]));
+  const merged = remotePages.map(remotePage => {
+    const localPage = localById.get(remotePage.id);
+    if (!localPage) return remotePage;
+
+    const remoteBody = String(remotePage.body || '').trim();
+    const localBody = String(localPage.body || '').trim();
+    if (!remoteBody && localBody) {
+      return { ...remotePage, body: localPage.body };
+    }
+    return remotePage;
+  });
+
+  const remoteIds = new Set(remotePages.map(page => page.id));
+  localPages.forEach(localPage => {
+    if (localPage.id && !remoteIds.has(localPage.id)) merged.push(localPage);
+  });
+
+  return merged;
 }
 
 async function savePageRemote(pageObj) {
@@ -977,12 +1014,20 @@ async function deletePageRemote(id) {
 }
 
 // Cats
-async function loadCatsRemote() {
+async function loadCatsRemote(options = {}) {
+  const fallbackLocal = options.fallbackLocal !== false;
   const data = await gasCall('getCats');
   if (data && Array.isArray(data.cats)) {
+    const localCats = (() => {
+      try { return JSON.parse(localStorage.getItem(LS_CATS) || '[]'); } catch { return []; }
+    })();
+    if (data.cats.length === 0 && (cats.length > 0 || localCats.length > 0)) {
+      return fallbackLocal ? localCats : null;
+    }
     localStorage.setItem(LS_CATS, JSON.stringify(data.cats));
     return data.cats;
   }
+  if (!fallbackLocal) return null;
   const defaults = [
     {id:'general', name:'General',      color:'#3b9eff'},
     {id:'manual',  name:'Manual',       color:'#2ecc71'},
@@ -1805,8 +1850,8 @@ async function syncFromGAS() {
   }
 
   const [remotePagesRes, remoteCatsRes] = await Promise.allSettled([
-    loadPagesRemote(),
-    loadCatsRemote()
+    loadPagesRemote({ fallbackLocal: false }),
+    loadCatsRemote({ fallbackLocal: false })
   ]);
 
   const newPages = remotePagesRes.status === 'fulfilled' ? remotePagesRes.value : null;
